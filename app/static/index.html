@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic AI Chat</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background: #f4f4f9;
+        }
+
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            line-height: 1.4;
+        }
+
+        .user {
+            align-self: flex-end;
+            background: #007bff;
+            color: white;
+        }
+
+        .assistant {
+            align-self: flex-start;
+            background: #e9e9eb;
+            color: #333;
+        }
+
+        #input-area {
+            padding: 20px;
+            background: white;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: #ccc;
+        }
+
+        .message {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="chat-container"></div>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Type your message here..." autofocus>
+        <button id="send-btn">Send</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerText = text;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return div;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            userInput.value = '';
+
+            // Prepare the AI message bubble
+            const aiBubble = appendMessage('assistant', '...');
+            aiBubble.innerText = ''; // Clear the dots
+
+            sendBtn.disabled = true;
+
+            try {
+                if (!localStorage.getItem('chat_session_id')) {
+                    localStorage.setItem('chat_session_id', crypto.randomUUID());
+                }
+                const sessionId = localStorage.getItem('chat_session_id');
+                const response = await fetch('http://127.0.0.1:8000/api/v1/chat', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        messages: [{ role: 'user', content: text }]
+                    })
+                });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    aiBubble.innerText += chunk; // Append tokens as they arrive
+                }
+            } catch (err) {
+                aiBubble.innerText = "Error: Could not connect to server.";
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    </script>
+</body>
+
+</html>
