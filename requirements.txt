@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+langgraph
+langchain
+langchain-core
+langchain-community
+pydantic
+python-dotenv
+motor

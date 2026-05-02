@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from app.schemas.chat import ChatMessage, ChatRequest
 from app.services.db_service import ChatHistoryService
 from app.core.config import settings
+from app.services.scheduling_agent.graph import agent as agent_graph_builder
 router = APIRouter()
 
 
@@ -34,5 +35,11 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
 
 @router.get("/", response_class=HTMLResponse)
 async def get_index():
-    with open("app/static/index.html", "r") as f:
+    with open("app/static/index.html", "r",  encoding="utf-8") as f:
         return f.read()
+    
+@router.post("/test_agent")
+async def test_agent(request: Request, chat_request: ChatRequest):
+    result = await agent_graph_builder.ainvoke({"messages": chat_request.messages})
+    print(result)
+    return {"response":  result.get("response", "Something went wrong") , "entities": result.get("entities", {})}

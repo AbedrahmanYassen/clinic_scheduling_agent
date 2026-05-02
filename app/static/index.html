@@ -150,6 +150,9 @@
 
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+        window.addEventListener('load', () => {
+    appendMessage('assistant', 'مرحبا ! كيف يمكنني مساعدتك اليوم؟');
+});
     </script>
 </body>
 

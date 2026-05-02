@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "clinic_bot"
     GEMINI_MODEL_NAME: str = "gemini-2.5-flash-lite"
-    MODEL_PROVIDER: str = "Gemini"
+    MODEL_PROVIDER: str = "Ollama"
     GEMINI_API_KEY: str 
 
     class Config:
