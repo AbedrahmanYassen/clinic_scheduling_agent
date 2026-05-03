@@ -8,3 +8,10 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     session_id: Optional[str] = None
+
+class AppoinementInfo(BaseModel):
+    name: Optional[str] = None
+    doctor: Optional[str] = None
+    service: Optional[str] = None
+    date: Optional[str] = None
+    time: Optional[str] = None

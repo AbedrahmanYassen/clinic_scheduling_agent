@@ -42,4 +42,4 @@ async def get_index():
 async def test_agent(request: Request, chat_request: ChatRequest):
     result = await agent_graph_builder.ainvoke({"messages": chat_request.messages})
     print(result)
-    return {"response":  result.get("response", "Something went wrong") , "entities": result.get("entities", {})}
+    return { "entities": result.get("entities", {})}

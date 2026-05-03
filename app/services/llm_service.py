@@ -37,29 +37,49 @@ class LLMService:
 
     async def extract_entities(self, message: str) -> dict:
         system_prompt = '''
-        Extract the following information from the user message.
+Extract structured appointment information from the user message.
 
-        Return ONLY valid JSON.
+Return ONLY valid JSON. Do not include any explanation or text outside JSON.
 
-        Fields:
-        - name
-        - date
-        - time
-        - doctor
-        - service
+-----------------------
+FIELDS
+-----------------------
+- name: string or null
+- doctor: string or null
+- service: string or null
 
-        Message:
-        {text}
+- date: MUST be in ISO format YYYY-MM-DD (e.g., 2026-05-10)
+- time: MUST be in 24-hour format HH:MM (e.g., 14:30)
 
-        Expected output:
-        {{
-            "name": "...",
-            "date": "...",
-            "time": "...",
-            "doctor": "...",
-            "service": "..."
-        }}
-        '''
+-----------------------
+NORMALIZATION RULES
+-----------------------
+
+- If date or time is missing or unclear, return null
+
+- If multiple options are mentioned, choose the most likely one
+
+-----------------------
+IMPORTANT
+-----------------------
+- Do NOT return natural language dates like "tomorrow"
+- Do NOT return "3pm" — always convert to HH:MM
+- Do NOT guess missing information
+
+-----------------------
+MESSAGE:
+{text}
+
+-----------------------
+OUTPUT FORMAT:
+{{
+    "name": "...",
+    "date": "YYYY-MM-DD or null",
+    "time": "HH:MM or null",
+    "doctor": "...",
+    "service": "..."
+}}
+'''
         prompt = [
             SystemMessage(content=system_prompt.format(text=message)),
             HumanMessage(content=message)
