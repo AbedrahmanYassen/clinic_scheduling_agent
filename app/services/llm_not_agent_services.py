@@ -7,7 +7,7 @@ from app.core.prompts import prompt
 from app.core.config import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-class OllamaService:
+class NotAgentLLMService:
     def __init__(self):
         if settings.MODEL_PROVIDER == "Ollama":
             self.llm = ChatOllama(
@@ -24,8 +24,6 @@ class OllamaService:
                 max_retries=2,
                 api_key=settings.GEMINI_API_KEY
             )
-        else:
-            raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
 
     async def chat_stream(self, messages: List[ChatMessage] = [] , session_id: str = None, db_service=None):
         """Streams the response token by token."""

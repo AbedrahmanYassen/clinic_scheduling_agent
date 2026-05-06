@@ -8,23 +8,26 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 class LLMService:
     def __init__(self):
-        if settings.MODEL_PROVIDER == "Ollama":
-            self.llm = ChatOllama(
-                model=settings.OLLAMA_MODEL,
-                temperature=0.8,
-                validate_model_on_init=True 
-            )
-        elif settings.MODEL_PROVIDER == "Gemini":
-                self.llm = ChatGoogleGenerativeAI(
-                model=settings.GEMINI_MODEL_NAME,
-                temperature=0.7,
-                max_tokens=None,
-                timeout=None,
-                max_retries=2,
-                api_key=settings.GEMINI_API_KEY
-            )
-        else:
-            raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
+        if not settings.Electricity_Off:
+            if settings.MODEL_PROVIDER == "Ollama":
+                self.llm = ChatOllama(
+                    model=settings.OLLAMA_MODEL,
+                    temperature=0.8,
+                    validate_model_on_init=True 
+                )
+            elif settings.MODEL_PROVIDER == "Gemini":
+                    self.llm = ChatGoogleGenerativeAI(
+                    model=settings.GEMINI_MODEL_NAME,
+                    temperature=0.7,
+                    max_tokens=None,
+                    timeout=None,
+                    max_retries=2,
+                    api_key=settings.GEMINI_API_KEY
+                )
+            else:
+                raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
+        else : 
+            self.llm = None  
 
     async def classify_intent(self, message: str) -> str:
         prompt = [

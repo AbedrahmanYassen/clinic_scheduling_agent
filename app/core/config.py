@@ -9,8 +9,7 @@ class Settings(BaseSettings):
     GEMINI_MODEL_NAME: str = "gemini-2.5-flash-lite"
     MODEL_PROVIDER: str = "Ollama"
     GEMINI_API_KEY: str 
-
+    
     class Config:
         env_file = ".env"
-
 settings = Settings()

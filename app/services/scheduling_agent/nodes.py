@@ -1,10 +1,10 @@
 from app.schemas.chat import AppoinementInfo
+from app.services import reservation_service
 from app.services.scheduling_agent.state import AgentState
 from app.services.llm_service import LLMService
 from datetime import datetime
 from typing import Literal
 import json
-
 llm_service = LLMService()
 
 async def intent_node(state: AgentState):
@@ -35,7 +35,6 @@ async def extract_node(state: AgentState):
     appointment = AppoinementInfo.model_validate(data)
     return {"entities": appointment}
 
-VALID_DOCTORS = ["Dr. Ahmed", "Dr. Sara", "Dr. Ali"]
 
 async def validate_node(state: AgentState):
     missing_fields = []
@@ -71,18 +70,14 @@ async def validate_node(state: AgentState):
         time_obj.time()
     )
     print("entities after validation:", state.get("entities", {}))
-
+  
     return {
         "next_action": "book_appointment",
         "response" : f"Great! I have all the information I need to book your appointment with {doctor} on {date_str} at {time_str}. Just a moment while I confirm the booking.",
-        "entities": {
-            "name": state.get("entities", {}).name,
-            "doctor": doctor,
-            "service": state.get("entities", {}).service, 
-            "date": state.get("entities", {}).date, 
-            "time": state.get("entities", {}).time    
+        "entities": state.get("entities"),
         }
-    }
+    
+
 def post_validation_router(state: AgentState):
     next_action = state.get("next_action")
 
@@ -93,11 +88,19 @@ def post_validation_router(state: AgentState):
     else:
         return "others_handler"
 
-def book_appointment(state: AgentState):
+async def book_appointment(state: AgentState):
     print("Booking appointment with data:", state.get("entities", {}), state.get("appointment_datetime"))
+    await state.get("reservation").create_indexes()
+    result = await state.get("reservation").create_reservation({
+    "name": state["entities"].name,
+    "doctor": state["entities"].doctor,
+    "date": state["entities"].date,
+    "time": state["entities"].time
+    })
+
     return {
-        "next_action": "send_response",
-        "response": f"Your appointment with {state['entities']['doctor']} on {state['entities']['date']} at {state['entities']['time']} has been booked successfully."
+        "response": result["message"],
+        "status" : result["status"]
     }
 
 def others_handler(state: AgentState):
@@ -106,10 +109,18 @@ def others_handler(state: AgentState):
         "response": "Sorry, I can only help with booking appointments. Please let me know if you want to book an appointment."
     }
 
-def send_response(state: AgentState):
-    return {
-        "response": state.get("response", "Sorry, something went wrong.")
-    }
+async def send_response(state: AgentState):
+    if(state.get("entities", {}).status == "success") : 
+        return {
+            "response": state.get("response", "Sorry, something went wrong.")
+        }
+    elif (state.get("entities", {}).status == "failed") : 
+        state.get("reservation")
+        start = datetime.strptime("2026-05-10 9:30", "%Y-%m-%d %H:%M")
+        suggestions = await state.get("reservation").suggest_alternatives(state.get("entities").doctor, start, 30)
+        return {
+            "response": f"Sorry, the requested time slot is not available. Here are some alternative time slots for {state.get('entities').doctor}: {', '.join(suggestions)}"
+        }
 
 
 
