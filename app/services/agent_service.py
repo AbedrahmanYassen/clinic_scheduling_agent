@@ -9,7 +9,14 @@ class SchedulingAgentService    :
 
     async def invoke_agent(self, chat_request):
         result = await agent_graph_builder.ainvoke({"messages": chat_request.messages, "reservation": self.reservation_service, "session_id": chat_request.session_id})
-        print(agent_graph_builder.get_graph().draw_ascii())
+        png_data = agent_graph_builder.get_graph().draw_mermaid_png()
+
+        with open("langgraph.png", "wb") as f:
+            f.write(png_data)
+
+        print("Saved!")
+
+
         return {
             "response" : result.get("response", ""),
             "entities" : jsonable_encoder(result.get("entities", {})), 

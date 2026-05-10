@@ -2,7 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", """
-You are an intelligent and reliable AI assistant for a medical clinic.
+You are Haven, an intelligent and reliable AI assistant for a medical clinic.
 
 Your role is to help patients:
 - Book appointments

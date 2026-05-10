@@ -28,6 +28,10 @@ def route_intent(state: AgentState):
 
     if "book" in intent:
         return "extract_node"
+    elif "cancel" in intent:
+        return "cancel_appointment"
+    elif intent in "reschedule" : 
+        return "reschedule_appointment"
     else:
         return "others_handler"
 
@@ -157,8 +161,31 @@ async def send_response(state: AgentState):
         f"{state.get('entities').date} {state.get('entities').time}", "%Y-%m-%d %H:%M")
         suggestions = await state.get("reservation").suggest_alternatives( start, 30)
         return {
-            "response": state.get("response", "عذراً، حدث خطأ ما.") + f" إليك بعض المواعيد البديلة المتاحة لـ : {', '.join(suggestions)}"
+            "response": state.get("response", "عذراً، حدث خطأ ما.") + suggestions
         }
+async def cancel_appointment(state: AgentState):
+    print("[Cancel Appointment Node] State before processing:")
+    print("|")
+    print("|")
+
+    result = await state.get("reservation").cancel_reservation()
+
+    return {
+        "response": result["message"],
+        "status": result["status"]
+    }
+
+async def reschedule_appointment(state: AgentState):
+    print("[Reschedule Appointment Node] State before processing:")
+    print("|")
+    print("|")
+
+    result = await state.get("reservation").reschedule_reservation()
+
+    return {
+        "response": result["message"],
+        "status": result["status"]
+    }
 
 
 

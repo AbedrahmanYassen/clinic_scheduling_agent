@@ -20,25 +20,25 @@ class ReservationService:
     def _build_datetime(self, date: str, time: str) -> datetime:
         return datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
 
-    async def _has_conflict(self, start: datetime, end: datetime) -> bool:
-        now = datetime.now(pytz.UTC)
-
+    async def _has_conflict(self, start: datetime, end: datetime) -> dict:
+        # now = datetime.now(pytz.UTC)
+        booked_already = await self.collection.find_one({
+            "session_id": self.session_id,
+        })
+        if booked_already:
+            return {"conflict": True, "message": "لديك موعد محجوز بالفعل في هذا الوقت .", "type": "booked", "status": "failed"}
         conflict = await self.collection.find_one({
-            "$or": [
-
-                {
-                    "session_id": self.session_id,
-                },
-                {
+                 {
                     "start_time": {"$lt": end},
                     "end_time": {"$gt": start},
-                    "status": "active",
-                    "expires_at": {"$gt": now}
-                }
-            ]
+                    # "status": "active",
+                    # "expires_at": {"$gt": now}
+                },
         })
+        if conflict:   
+            return {"conflict": True, "message": "هذا الوقت متداخل مع موعد آخر.", "type": "conflict", "status": "failed"}
         print("Conflict check:", conflict)
-        return conflict is not None
+        return {"conflict": False}
     def _is_within_working_hours(self, start: datetime, end: datetime) -> bool:
 
         GAZA_TZ = pytz.timezone("Asia/Gaza")
@@ -73,12 +73,9 @@ class ReservationService:
         start_time = self._build_datetime(date, time)
 
         end_time = start_time + timedelta(minutes=30)
-
-        if await self._has_conflict( start_time, end_time, ):
-            return {
-                "status": "failed",
-                "message": "هذا الوقت متداخل مع موعد آخر أو لك موعد محجوز بالفعل "
-            }
+        conflict_result = await self._has_conflict(start_time, end_time)
+        if conflict_result["conflict"]:
+            return conflict_result
         if not self._is_within_working_hours(start_time, end_time):
             return {
                 "status": "failed",
@@ -120,16 +117,27 @@ class ReservationService:
         start: datetime,
         duration_minutes: int = 30,
         attempts: int = 5,
-    ) -> List[str]:
+    ) -> str:
 
-        suggestions = []
+        suggestions = ""
         current = start
 
         for _ in range(attempts):
             current += timedelta(minutes=30)
             end = current + timedelta(minutes=duration_minutes)
-
-            if not await self._has_conflict( current, end) and self._is_within_working_hours(current, end):
-                suggestions.append(current.strftime("%Y-%m-%d %H:%M"))
+            conflict_result = await self._has_conflict(current, end)
+            if conflict_result["conflict"] and conflict_result["type"] == "conflict":
+                suggestions += "إليك بعض المواعيد البديلة المتاحة لـ : "
+            if not conflict_result["conflict"] and conflict_result["type"] == "conflict" and self._is_within_working_hours(current, end):
+                suggestions += current.strftime("%Y-%m-%d %H:%M") + ", "
 
         return suggestions
+    async def cancel_reservation(self) -> dict:
+        result = await self.collection.delete_one({ "session_id": self.session_id})
+        if result.deleted_count == 1:
+            return {"status": "success", "message": "تم إلغاء الموعد بنجاح"}
+        else:
+            return {"status": "failed", "message": "لم يتم العثور على الموعد أو لا يمكنك إلغاؤه"}
+        
+    async def reschedule_reservation(self) -> Optional[dict]:
+        return {"status": "failed", "message": "ميزة إعادة الجدولة غير متاحة حالياً."}
