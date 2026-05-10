@@ -11,7 +11,6 @@ class ChatRequest(BaseModel):
 
 class AppoinementInfo(BaseModel):
     name: Optional[str] = None
-    doctor: Optional[str] = None
     service: Optional[str] = None
     date: Optional[str] = None
     time: Optional[str] = None

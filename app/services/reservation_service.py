@@ -7,23 +7,35 @@ from datetime import datetime, time
 
 
 class ReservationService:
-    def __init__(self, db):
+    def __init__(self, db, session_id: str = None):
         self.collection = db["reservations"]
+        self.session_id = session_id
 
 
     async def create_indexes(self):
-        # Prevent exact duplicate start times per doctor
         await self.collection.create_index(
-            [("doctor", 1), ("start_time", 1)],
+            [("session_id", 1), ("start_time", 1)],
             unique=True
         )
     def _build_datetime(self, date: str, time: str) -> datetime:
         return datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
 
-    async def _has_conflict(self, doctor: str, start: datetime, end: datetime) -> bool:
+    async def _has_conflict(self, start: datetime, end: datetime) -> bool:
+        now = datetime.now(pytz.UTC)
+
         conflict = await self.collection.find_one({
-            "start_time": {"$lt": end},
-            "end_time": {"$gt": start}
+            "$or": [
+
+                {
+                    "session_id": self.session_id,
+                },
+                {
+                    "start_time": {"$lt": end},
+                    "end_time": {"$gt": start},
+                    "status": "active",
+                    "expires_at": {"$gt": now}
+                }
+            ]
         })
         print("Conflict check:", conflict)
         return conflict is not None
@@ -48,38 +60,37 @@ class ReservationService:
         return True
     async def create_reservation(self, appointment_info: dict) -> dict:
         name = appointment_info.get("name")
-        doctor = appointment_info.get("doctor")
         date = appointment_info.get("date")
         time = appointment_info.get("time")
         service = appointment_info.get("service")
 
-        if not all([name, doctor, date, time]):
+        if not all([name, date, time]):
             return {
                 "status": "failed",
-                "message": "Missing required fields"
+                "message": "هناك حقول مطلوبة مفقودة"
             }
 
         start_time = self._build_datetime(date, time)
 
         end_time = start_time + timedelta(minutes=30)
 
-        if await self._has_conflict(doctor, start_time, end_time):
+        if await self._has_conflict( start_time, end_time, ):
             return {
                 "status": "failed",
-                "message": "This time overlaps with another appointment"
+                "message": "هذا الوقت متداخل مع موعد آخر أو لك موعد محجوز بالفعل "
             }
         if not self._is_within_working_hours(start_time, end_time):
             return {
                 "status": "failed",
-                "message": "Appointment must be within working hours (9am-5pm, Sunday-Thursday)"
+                "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)"
             }
 
         document = {
             "name": name,
-            "doctor": doctor,
             "start_time": start_time,
             "end_time": end_time,
             "service": service,
+            "session_id": self.session_id,
             "created_at": datetime.utcnow()
         }
 
@@ -87,9 +98,8 @@ class ReservationService:
             await self.collection.insert_one(document)
             return {
                 "status": "success",
-                "message": "Appointment booked successfully",
+                "message": "تم حجز الموعد بنجاح",
                 "data": {
-                    "doctor": doctor,
                     "start_time": start_time.isoformat()
                 }
             }
@@ -97,7 +107,7 @@ class ReservationService:
         except DuplicateKeyError:
             return {
                 "status": "failed",
-                "message": "This time slot was just taken. Try another time."
+                "message": "لقد تم أخذ هذه الفترة الزمنية للتو. حاول في وقت آخر."
             }
 
     async def get_reservations(self, name: str) -> List[dict]:
@@ -107,10 +117,9 @@ class ReservationService:
 
     async def suggest_alternatives(
         self,
-        doctor: str,
         start: datetime,
         duration_minutes: int = 30,
-        attempts: int = 5
+        attempts: int = 5,
     ) -> List[str]:
 
         suggestions = []
@@ -120,7 +129,7 @@ class ReservationService:
             current += timedelta(minutes=30)
             end = current + timedelta(minutes=duration_minutes)
 
-            if not await self._has_conflict(doctor, current, end) and self._is_within_working_hours(current, end):
+            if not await self._has_conflict( current, end) and self._is_within_working_hours(current, end):
                 suggestions.append(current.strftime("%Y-%m-%d %H:%M"))
 
         return suggestions

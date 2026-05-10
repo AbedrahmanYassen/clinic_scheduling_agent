@@ -17,7 +17,6 @@ Rules:
   • Patient name
   • Date
   • Time
-  • Doctor or specialty (if needed)
 - Ask only for missing information.
 - Keep responses short and professional.
 - Do NOT hallucinate confirmations.

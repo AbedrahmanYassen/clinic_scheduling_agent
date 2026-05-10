@@ -25,16 +25,19 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
 
     db_service = ChatHistoryService(request.app.mongodb)
     service = request.app.state.llm_service
+    scheduling_agent_service = SchedulingAgentService(request.app.mongodb, session_id=session_id)
+
     
     if settings.Electricity_Off:
-        response = StreamingResponse(service.chat_stream(), media_type="text/event-stream")
+        response = "⚡ النظام حالياً غير متصل بالإنترنت. يرجى المحاولة مرة أخرى لاحقاً."
     else:
-        await db_service.summarize_and_clean(session_id)
-        await db_service.save_message(session_id, chat_request.messages[-1])
-        response = StreamingResponse(
-            service.chat_stream(chat_request.messages, session_id=session_id, db_service=db_service),
-            media_type="text/event-stream"
-        )
+        result = await scheduling_agent_service.invoke_agent(chat_request)
+        response = {
+            "response" : result.get("response", ""),
+            "entities" : result.get("entities", {}), 
+            "status" : result.get("status", "") , 
+            "missing_fields": result.get("missing_fields", [])  
+        }
     return response
 
 
@@ -45,23 +48,27 @@ async def get_index():
     
 @router.post("/test_agent")
 async def test_agent(request: Request, chat_request: ChatRequest):
-    scheduling_agent_service = SchedulingAgentService(request.app.mongodb)
+    scheduling_agent_service = SchedulingAgentService(request.app.mongodb, session_id=chat_request.session_id)
     result = await scheduling_agent_service.invoke_agent(chat_request)
     return result
 
 @router.post("/test_reservation_service")
 async def test_reservation_service(request: Request, chat_request: ChatRequest):
 
-    reservation_service = ReservationService(request.app.mongodb)
+    reservation_service = ReservationService(request.app.mongodb, session_id=chat_request.session_id)
     await reservation_service.create_indexes()
     result = await reservation_service.create_reservation({
     "name": "Abdallah",
-    "doctor": "John Doe",
     "date": "2026-05-9",
     "time": "21:30"
     })
     if result["status"] == "failed":
         start = datetime.strptime("2026-05-10 9:30", "%Y-%m-%d %H:%M")
-    suggestions = await reservation_service.suggest_alternatives("John Doe", start, 30) 
-    return {"result": result , "suggestions": suggestions}
+    suggestions = await reservation_service.suggest_alternatives(start, 30) 
+    formatted_suggestions = "\n".join(
+        f"- {slot}" for slot in suggestions
+    )
+
+    result["message"] += f"\n\nAvailable alternatives:\n{formatted_suggestions}"
+    return {"result": result}
     

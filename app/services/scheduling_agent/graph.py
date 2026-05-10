@@ -28,7 +28,8 @@ builder.add_conditional_edges(
         "others_handler": "others_handler",
     }
 )
+builder.add_edge("book_appointment", "send_response")
+builder.add_edge("send_response", END)
 builder.add_edge("extract_node", "validate_node")
-builder.add_edge("validate_node", END)
 
 agent = builder.compile()
