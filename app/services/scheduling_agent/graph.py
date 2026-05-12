@@ -19,7 +19,6 @@ builder.add_conditional_edges(
     {
         "extract_node": "extract_node",
         "cancel_appointment": "cancel_appointment",
-        "reschedule_appointment": "reschedule_appointment",
         "others_handler": "others_handler",
     }
 )
@@ -29,6 +28,7 @@ builder.add_conditional_edges(
     {
         "book_appointment": "book_appointment",
         "send_response": "send_response",
+        "reschedule_appointment": "reschedule_appointment",
         "others_handler": "others_handler",
     }
 )

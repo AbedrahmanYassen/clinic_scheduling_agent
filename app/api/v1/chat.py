@@ -10,7 +10,7 @@ from app.services import reservation_service
 from app.services.mock_llm_service import MockLLMService
 from fastapi.responses import HTMLResponse
 from app.schemas.chat import ChatMessage, ChatRequest
-from app.services.db_service import ChatHistoryService
+from app.services.chat_history_service import ChatHistoryService
 from app.core.config import settings
 from app.services.scheduling_agent.graph import agent as agent_graph_builder
 from app.services.reservation_service import ReservationService
@@ -23,9 +23,7 @@ router = APIRouter()
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
     session_id = chat_request.session_id
 
-    db_service = ChatHistoryService(request.app.mongodb)
-    service = request.app.state.llm_service
-    scheduling_agent_service = SchedulingAgentService(request.app.mongodb, session_id=session_id)
+    scheduling_agent_service = SchedulingAgentService(db=request.app.mongodb, session_id=session_id)
 
     
     if settings.Electricity_Off:
@@ -38,6 +36,7 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
             "status" : result.get("status", "") , 
             "missing_fields": result.get("missing_fields", [])  
         }
+
     return response
 
 

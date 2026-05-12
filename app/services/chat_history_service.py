@@ -16,6 +16,7 @@ class ChatHistoryService:
             "content": message.content,
             "timestamp": datetime.utcnow(),
         }
+        
         await self.collection.insert_one(document)
 
     async def get_history(self, session_id: str) -> List[dict]:
@@ -25,11 +26,6 @@ class ChatHistoryService:
     async def summarize_and_clean(self, session_id: str ) -> str:
         summary_service = SummaryService()
         current_history = await self.get_history(session_id)
-    
-        if len(current_history) <  4 or  settings.Electricity_Off:
-            print("Not enough history to summarize or running in offline mode. Skipping summarization.")
-            return 
-
 
         if current_history is None:
             cursor = self.collection.find({"session_id": session_id}).sort("timestamp", 1)
@@ -52,6 +48,13 @@ class ChatHistoryService:
         })
         
         return summary_text
+    
+    async def get_latest_n(self, session_id: str, n: int) -> str:
+        cursor = self.collection.find({"session_id": session_id}).sort("timestamp", -1).limit(n)
+        recent_messages = await cursor.to_list(length=n)
+        recent_messages.reverse()
+        formatted_text = "\n".join([f"{m['role']}: {m['content']}" for m in recent_messages])
+        return formatted_text
     
 
     

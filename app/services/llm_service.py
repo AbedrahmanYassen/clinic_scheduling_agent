@@ -101,7 +101,7 @@ info
         # res = await self.llm.ainvoke(prompt, callbacks=[self.langfuse_handler])
         return res.content.strip().lower()
 
-    async def extract_entities(self, message: str) -> dict:
+    async def extract_entities(self, message: str, summary: str = "") -> dict:
         system_prompt = '''
 Extract structured appointment information from the user message.
 
@@ -130,6 +130,10 @@ IMPORTANT
 - Do NOT return natural language dates like "tomorrow"
 - Do NOT return "3pm" — always convert to HH:MM
 - Do NOT guess missing information
+-----------------------
+Summary of previous conversation:
+{summary}
+
 
 -----------------------
 MESSAGE:
@@ -145,7 +149,7 @@ OUTPUT FORMAT:
 }}
 '''
         prompt = [
-            SystemMessage(content=system_prompt.format(text=message)),
+            SystemMessage(content=system_prompt.format(text=message, summary=summary)),
             HumanMessage(content=message)
         ]
         res = await self.llm.ainvoke(
@@ -156,9 +160,57 @@ OUTPUT FORMAT:
         # res = await self.llm.ainvoke(prompt, callbacks=[self.langfuse_handler])
         return res.content  
 
-    async def generate_response(self, context: str) -> str:
+    async def generate_response(self, context: str, summary: str = "") -> str:
+        
         res = await self.llm.ainvoke(
-            [HumanMessage(content=context)],
+            context,
+            config={"callbacks": [self.langfuse_handler]}
+        )
+        return res.content
+    
+    
+    async def others_llm(self, message: str, summary: str = "") -> str:
+        handle_others_prompt = """
+You are a polite and friendly clinic appointment assistant.
+
+Your role is ONLY:
+- booking appointments
+- canceling appointments
+- rescheduling appointments
+- answering appointment-related questions
+
+The user sent a message outside the assistant scope.
+
+Use the conversation history summary to make the reply feel personalized and natural.
+
+Conversation history summary:
+{history_summary}
+
+Current user message:
+{user_message}
+
+Instructions:
+- Politely explain that this chat is only for appointment management.
+- If the user provides any relevant information in their message (like their name or appointment details), acknowledge it warmly and say you will try to record it, but still clarify that you can only assist with appointment-related tasks.
+- Mention supported actions naturally:
+  - booking appointments
+  - canceling appointments
+  - rescheduling appointments
+
+- Keep the response short and conversational.
+- Sound human and warm.
+- If possible, personalize the response using the history summary.
+- Do not sound robotic or repetitive.
+- Do not mention "AI", "language model", or "system".
+- Respond in the same language as the user.
+
+Example tone:
+"أقدر سؤالك 😊 لكن هذه المحادثة مخصصة فقط لإدارة المواعيد، مثل الحجز أو الإلغاء أو تغيير الموعد. إذا حاب، أقدر أساعدك بحجز موعد أو تعديل موعدك الحالي."
+
+Return ONLY the response message.
+"""
+        res = await self.llm.ainvoke(
+            [SystemMessage(content=handle_others_prompt.format(history_summary=summary, user_message=message)),HumanMessage(content=message)], 
             config={"callbacks": [self.langfuse_handler]}
         )
         return res.content

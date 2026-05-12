@@ -10,5 +10,6 @@ class AgentState(TypedDict):
     response: str | None
     reservation : ReservationService | None
     status : str | None
+    summary : str | None
 
 

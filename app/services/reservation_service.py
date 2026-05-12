@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from tracemalloc import start
 from typing import List, Optional
+from unittest import result
 from pymongo.errors import DuplicateKeyError
 import pytz
-from datetime import datetime, time
+from datetime import datetime, time ,UTC
 
 
 class ReservationService:
@@ -18,7 +19,10 @@ class ReservationService:
             unique=True
         )
     def _build_datetime(self, date: str, time: str) -> datetime:
-        return datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        return datetime.strptime(
+    f"{date} {time}",
+    "%Y-%m-%d %H:%M"
+).replace(tzinfo=UTC)
 
     async def _has_conflict(self, start: datetime, end: datetime) -> dict:
         # now = datetime.now(pytz.UTC)
@@ -28,17 +32,15 @@ class ReservationService:
         if booked_already:
             return {"conflict": True, "message": "لديك موعد محجوز بالفعل في هذا الوقت .", "type": "booked", "status": "failed"}
         conflict = await self.collection.find_one({
-                 {
+                 
                     "start_time": {"$lt": end},
                     "end_time": {"$gt": start},
-                    # "status": "active",
-                    # "expires_at": {"$gt": now}
-                },
+            
         })
         if conflict:   
             return {"conflict": True, "message": "هذا الوقت متداخل مع موعد آخر.", "type": "conflict", "status": "failed"}
         print("Conflict check:", conflict)
-        return {"conflict": False}
+        return {"conflict": False, "message": "لا يوجد تداخل في الموعد.", "type": "none", "status": "success"}
     def _is_within_working_hours(self, start: datetime, end: datetime) -> bool:
 
         GAZA_TZ = pytz.timezone("Asia/Gaza")
@@ -58,6 +60,11 @@ class ReservationService:
             return False
 
         return True
+    
+    async def _is_past(self, start: datetime) -> bool:
+        now = datetime.now(pytz.UTC)
+        
+        return start < now  
     async def create_reservation(self, appointment_info: dict) -> dict:
         name = appointment_info.get("name")
         date = appointment_info.get("date")
@@ -73,6 +80,11 @@ class ReservationService:
         start_time = self._build_datetime(date, time)
 
         end_time = start_time + timedelta(minutes=30)
+        if await self._is_past(start_time):
+            return {
+                "status": "failed",
+                "message": "لا يمكنك حجز موعد في الماضي."
+            }
         conflict_result = await self._has_conflict(start_time, end_time)
         if conflict_result["conflict"]:
             return conflict_result
@@ -132,12 +144,88 @@ class ReservationService:
                 suggestions += current.strftime("%Y-%m-%d %H:%M") + ", "
 
         return suggestions
+    async def cleanup_old_reservations(self):
+
+        result = await self.collection.delete_many({
+            "start_time": {
+                "$lt": datetime.now(UTC)
+            }
+        })
+
+        print(f"Deleted {result.deleted_count} old reservations")
     async def cancel_reservation(self) -> dict:
         result = await self.collection.delete_one({ "session_id": self.session_id})
         if result.deleted_count == 1:
             return {"status": "success", "message": "تم إلغاء الموعد بنجاح"}
         else:
             return {"status": "failed", "message": "لم يتم العثور على الموعد أو لا يمكنك إلغاؤه"}
-        
-    async def reschedule_reservation(self) -> Optional[dict]:
-        return {"status": "failed", "message": "ميزة إعادة الجدولة غير متاحة حالياً."}
+    async def reschedule_reservation(
+    self,
+    new_date: str | None = None,
+    new_time: str | None = None,
+    duration_minutes: int = 30) -> dict:
+
+
+        reservation = await self.collection.find_one({
+            "session_id": self.session_id
+        })
+
+        if not reservation:
+            return {
+                "status": "failed",
+                "message": "لا يوجد حجز لإعادة جدولته."
+            }
+
+        current_start = reservation["start_time"]
+
+        date_part = (
+            new_date
+            if new_date
+            else current_start.strftime("%Y-%m-%d")
+        )
+
+        time_part = (
+            new_time
+            if new_time
+            else current_start.strftime("%H:%M")
+        )
+
+        new_start = datetime.strptime(
+            f"{date_part} {time_part}",
+            "%Y-%m-%d %H:%M"
+        )
+
+        new_end = new_start + timedelta(minutes=duration_minutes)
+
+        conflict = await self.collection.find_one({
+            "_id": {"$ne": reservation["_id"]},
+            "start_time": {"$lt": new_end},
+            "end_time": {"$gt": new_start}
+        })
+
+        if conflict:
+            return {
+                "status": "failed",
+                "message": "الموعد الجديد غير متاح."
+            }
+
+        # Update reservation
+        await self.collection.update_one(
+            {"_id": reservation["_id"]},
+            {
+                "$set": {
+                    "start_time": new_start,
+                    "end_time": new_end,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return {
+            "status": "success",
+            "message": (
+                f"تم إعادة جدولة الموعد إلى "
+                f"{new_start.strftime('%Y-%m-%d %H:%M')}"
+            )
+        }
+    
