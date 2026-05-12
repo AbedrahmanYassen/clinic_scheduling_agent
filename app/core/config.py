@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str
     LANGFUSE_PUBLIC_KEY: str
     LANGFUSE_BASE_URL: str
+    TIME_ZONE: str = "Asia/Jerusalem"
 
     class Config:
         env_file = ".env"

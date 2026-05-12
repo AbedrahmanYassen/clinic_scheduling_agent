@@ -2,8 +2,9 @@ from datetime import datetime, timedelta
 from tracemalloc import start
 from typing import List, Optional
 from unittest import result
+from zoneinfo import ZoneInfo
 from pymongo.errors import DuplicateKeyError
-import pytz
+from app.core.config import settings
 from datetime import datetime, time ,UTC
 
 
@@ -19,13 +20,14 @@ class ReservationService:
             unique=True
         )
     def _build_datetime(self, date: str, time: str) -> datetime:
+        Time_Zone = ZoneInfo(settings.TIME_ZONE)
+        now = datetime.now(Time_Zone)
         return datetime.strptime(
     f"{date} {time}",
     "%Y-%m-%d %H:%M"
-).replace(tzinfo=UTC)
+).replace(tzinfo=Time_Zone)
 
     async def _has_conflict(self, start: datetime, end: datetime) -> dict:
-        # now = datetime.now(pytz.UTC)
         booked_already = await self.collection.find_one({
             "session_id": self.session_id,
         })
@@ -43,12 +45,12 @@ class ReservationService:
         return {"conflict": False, "message": "لا يوجد تداخل في الموعد.", "type": "none", "status": "success"}
     def _is_within_working_hours(self, start: datetime, end: datetime) -> bool:
 
-        GAZA_TZ = pytz.timezone("Asia/Gaza")
+        Time_Zone = ZoneInfo(settings.TIME_ZONE)
 
         WORK_START = time(9, 0)   
         WORK_END = time(17, 0)    
-        start_local = start.astimezone(GAZA_TZ)
-        end_local = end.astimezone(GAZA_TZ)
+        start_local = start.astimezone(Time_Zone)
+        end_local = end.astimezone(Time_Zone)
 
         if start_local.weekday() == 4:
             return False
@@ -62,9 +64,10 @@ class ReservationService:
         return True
     
     async def _is_past(self, start: datetime) -> bool:
-        now = datetime.now(pytz.UTC)
-        
-        return start < now  
+        Time_Zone = ZoneInfo(settings.TIME_ZONE)
+        now = datetime.now(Time_Zone)
+        return start < now
+
     async def create_reservation(self, appointment_info: dict) -> dict:
         name = appointment_info.get("name")
         date = appointment_info.get("date")
@@ -148,7 +151,7 @@ class ReservationService:
 
         result = await self.collection.delete_many({
             "start_time": {
-                "$lt": datetime.now(UTC)
+                "$lt": datetime.now(ZoneInfo(settings.TIME_ZONE))
             }
         })
 
