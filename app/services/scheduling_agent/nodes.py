@@ -6,6 +6,7 @@ from app.services.scheduling_agent.state import AgentState
 from app.services.llm_service import LLMService
 from datetime import datetime
 import json
+
 llm_service = LLMService()
 
 async def intent_node(state: AgentState):
@@ -28,7 +29,7 @@ async def intent_node(state: AgentState):
 def route_intent(state: AgentState):
     intent = state.get("intent", "")
 
-    if "book" in intent or "schedule" in intent or "reschedule" in intent:
+    if "book" in intent or "schedule" in intent or "reschedule" in intent or "info" in intent:
         return "extract_node"
     elif "cancel" in intent:
         return "cancel_appointment"
@@ -55,8 +56,9 @@ async def extract_node(state: AgentState):
         data = json.loads(cleaned)
 
         appointment = AppoinementInfo.model_validate(data)
-        print("Validated appointment data:", appointment)
-
+        await state.get("conversation_memory").update_memory(state["session_id"], appointment)
+        appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
+        print("Merged appointment data with memory:", appointment)
         return {"entities": appointment}    
     except json.JSONDecodeError as e:
         print("Error decoding JSON:", e)
@@ -70,44 +72,37 @@ async def validate_node(state: AgentState):
     print("[Validate Node] State before processing:")
     print("|")
     print("|")
-    
+    if "info" in state.get("intent", ""):
+        return {"reponse" : "شكرا لتزيدي المعلومات. هل هناك أي شيء آخر يمكنني مساعدتك به؟" , "entities": state.get("entities", {}) , "status": "success"}
     missing_fields = []
-    print("entities before validation:", state.get("entities", {}))
     if not state.get("entities"):
         return {
             "next_action": "missing_info",
             "response": "عذراً، لم أتمكن من استخراج المعلومات اللازمة من رسالتك. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون."
         }
+    
     if  not state["intent"] == "reschedule" and (state["entities"].name == "null" or not state["entities"].name):
         missing_fields.append("name")
 
-    date_str = state["entities"].date
-    try:
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-    except:
+    print("entities after merging with memory:", state.get("entities", {}))
+
+    if state["entities"].date in [None, "null"] :
         missing_fields.append("date")
 
-    time_str = state["entities"].time
-    try:
-        time_obj = datetime.strptime(time_str, "%H:%M")
-    except:
+    if state["entities"].time in [None, "null"] :
         missing_fields.append("time")
 
-    if missing_fields:
+    if missing_fields  :
         print("Missing or invalid fields:", missing_fields)
         return {
             "next_action": "missing_info",
             "response": f"هناك بعض الحقول المفقودة أو غير الصحيحة: {', '.join(missing_fields)}. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون."
         }
 
-    appointment_datetime = datetime.combine(
-        date_obj.date(),
-        time_obj.time()
-    )
-    print("entities after validation:", state.get("entities", {}))
+
   
     return {
-        "response" : f"ممتاز! لدي جميع المعلومات اللازمة لحجز موعدك   في {date_str} الساعة {time_str}. لحظة واحدة بينما أؤكد الحجز.",
+        "response" : f"ممتاز! لدي جميع المعلومات اللازمة لحجز موعدك   في {state['entities'].date} الساعة {state['entities'].time}. لحظة واحدة بينما أؤكد الحجز.",
         "entities": state.get("entities"),
         }
     
