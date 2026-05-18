@@ -7,6 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
+from datetime import datetime
 
 class LLMService:
     def __init__(self):
@@ -101,8 +102,13 @@ info
         # res = await self.llm.ainvoke(prompt, callbacks=[self.langfuse_handler])
         return res.content.strip().lower()
 
-    async def extract_entities(self, message: str, summary: str = "") -> dict:
-        system_prompt = '''
+    async def extract_entities(self, message: str) -> dict:
+        now = datetime.now()
+        current_year = now.year
+        current_month = now.month
+        current_month_name = now.strftime("%B")
+
+        system_prompt = f'''
 Extract structured appointment information from the user message.
 
 Return ONLY valid JSON. Do not include any explanation or text outside JSON.
@@ -112,16 +118,16 @@ FIELDS
 -----------------------
 - name: string or null
 - service: string or null
-
-- date: MUST be in ISO format YYYY-MM-DD (e.g., 2026-05-10)
-- time: MUST be in 24-hour format HH:MM (e.g., 14:30)
+- date: MUST be in ISO format YYYY-MM-DD  or null if missing or unclear
+- time: MUST be in 24-hour format HH:MM (e.g., 14:30) or null if missing or unclear
 
 -----------------------
 NORMALIZATION RULES
 -----------------------
 
 - If date or time is missing or unclear, return null
-
+- If the year is missing, use the current year: {current_year}
+- If the month is missing, use the current month: {current_month} ({current_month_name})
 - If multiple options are mentioned, choose the most likely one
 
 -----------------------
@@ -130,14 +136,10 @@ IMPORTANT
 - Do NOT return natural language dates like "tomorrow"
 - Do NOT return "3pm" — always convert to HH:MM
 - Do NOT guess missing information
------------------------
-Summary of previous conversation:
-{summary}
-
-
+- Never assume anything that is not explicitly mentioned in the message
 -----------------------
 MESSAGE:
-{text}
+{message}
 
 -----------------------
 OUTPUT FORMAT:
@@ -149,7 +151,7 @@ OUTPUT FORMAT:
 }}
 '''
         prompt = [
-            SystemMessage(content=system_prompt.format(text=message, summary=summary)),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=message)
         ]
         res = await self.llm.ainvoke(

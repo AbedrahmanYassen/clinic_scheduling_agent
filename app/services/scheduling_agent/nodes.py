@@ -1,3 +1,4 @@
+import re
 from urllib import response
 
 from app.schemas.chat import AppoinementInfo
@@ -44,16 +45,12 @@ async def extract_node(state: AgentState):
     try:
         last_message = state["messages"][-1].content
 
-        entities_str = await llm_service.extract_entities(last_message, state.get("summary", ""))
-        cleaned = entities_str.strip()
+        entities_str = await llm_service.extract_entities(last_message)
+        match = re.search(r"\{.*\}", entities_str, re.DOTALL)
+        if not match:
+            raise ValueError(f"No JSON found in response: {entities_str!r}")
 
-        if cleaned.startswith("```json"):
-            cleaned = cleaned.replace("```json", "").replace("```", "").strip()
-
-        elif cleaned.startswith("```"):
-            cleaned = cleaned.replace("```", "").strip()
-
-        data = json.loads(cleaned)
+        data = json.loads(match.group())
 
         appointment = AppoinementInfo.model_validate(data)
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
