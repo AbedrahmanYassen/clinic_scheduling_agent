@@ -8,6 +8,7 @@ from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
 from datetime import datetime
+from langchain_openai import ChatOpenAI
 
 class LLMService:
     def __init__(self):
@@ -39,6 +40,12 @@ class LLMService:
                     timeout=None,
                     max_retries=2,
                     api_key=settings.GEMINI_API_KEY
+                )
+            elif settings.MODEL_PROVIDER == "Fanar":
+                self.llm = ChatOpenAI(
+                    base_url="https://api.fanar.qa/v1",
+                    api_key=settings.Fanar_API_KEY,
+                    model="Fanar",
                 )
             else:
                 raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
