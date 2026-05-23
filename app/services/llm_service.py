@@ -9,7 +9,9 @@ from langfuse.langchain import CallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
 from datetime import datetime
 from langchain_openai import ChatOpenAI
-
+from app.utils.date_parser import parse_arabic_date
+import json
+import re
 class LLMService:
     def __init__(self):
         
@@ -110,65 +112,88 @@ info
         return res.content.strip().lower()
 
     async def extract_entities(self, message: str) -> dict:
-        now = datetime.now()
-        current_year = now.year
-        current_month = now.month
-        current_month_name = now.strftime("%B")
-
+    
         system_prompt = f'''
-Extract structured appointment information from the user message.
+    Extract structured appointment information from the user message.
 
-Return ONLY valid JSON. Do not include any explanation or text outside JSON.
+    Return ONLY valid JSON. Do not include any explanation or text outside JSON.
 
------------------------
-FIELDS
------------------------
-- name: string or null
-- service: string or null
-- date: MUST be in ISO format YYYY-MM-DD  or null if missing or unclear
-- time: MUST be in 24-hour format HH:MM (e.g., 14:30) or null if missing or unclear
+    -----------------------
+    FIELDS
+    -----------------------
+    - name: string or null
+    - service: string or null
+    - date: Return in ISO format YYYY-MM-DD if you're confident, 
+            OR return the date expression in natural Arabic (e.g. "بكرة", "الخميس الجاي", "نهاية الأسبوع") if unclear.
+            Return null ONLY if no date was mentioned at all.
+    - time: MUST be in 24-hour format HH:MM (e.g., 14:30) or null if missing or unclear
 
------------------------
-NORMALIZATION RULES
------------------------
+    -----------------------
+    TIME INFERENCE RULES
+    -----------------------
+    - If the user says صباحاً / الصبح / morning         → assume 09:00 if no specific hour given
+    - If the user says الظهر / ظهراً / noon              → assume 12:00
+    - If the user says بعد الظهر / afternoon             → assume 14:00
+    - If the user says العصر / mid-afternoon             → assume 15:00  
+    - If the user says المسا / مساءً / evening           → assume 18:00
+    - If the user says الليل / ليلاً / night             → assume 20:00
 
-- If date or time is missing or unclear, return null
-- If the year is missing, use the current year: {current_year}
-- If the month is missing, use the current month: {current_month} ({current_month_name})
-- If multiple options are mentioned, choose the most likely one
+    - If the user gives BOTH a specific hour AND a period (e.g. "3 المسا"), 
+    convert the hour using the period as context:
+        · صباح  → hour as-is if 6–11, else add 0   (e.g. 9 الصبح  → 09:00)
+        · مسا   → add 12 if hour is 1–6             (e.g. 3 المسا  → 15:00)
+        · ليل   → add 12 if hour is 7–11            (e.g. 9 الليل  → 21:00)
 
------------------------
-IMPORTANT
------------------------
-- Do NOT return natural language dates like "tomorrow"
-- Do NOT return "3pm" — always convert to HH:MM
-- Do NOT guess missing information
-- Never assume anything that is not explicitly mentioned in the message
------------------------
-MESSAGE:
-{message}
+    -----------------------
+    IMPORTANT
+    -----------------------
+    - Do NOT return "3pm" — always convert time to HH:MM
+    - Do NOT guess missing information
+    - Do NOT return null for date if the user mentioned any date expression
 
------------------------
-OUTPUT FORMAT:
-{{
-    "name": "...",
-    "date": "YYYY-MM-DD or null",
-    "time": "HH:MM or null",
-    "service": "..."
-}}
-'''
+    -----------------------
+    MESSAGE:
+    {message}
+
+    -----------------------
+    OUTPUT FORMAT:
+    {{
+        "name": "...",
+        "date": "YYYY-MM-DD or natural Arabic expression or null",
+        "time": "HH:MM or null",
+        "service": "..."
+    }}
+    '''
         prompt = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=message)
         ]
+        
         res = await self.llm.ainvoke(
-        prompt,
-        config={"callbacks": [self.langfuse_handler]}
+            prompt,
+            config={"callbacks": [self.langfuse_handler]}
         )
 
-        # res = await self.llm.ainvoke(prompt, callbacks=[self.langfuse_handler])
-        return res.content  
+        try:
+            llm_data = json.loads(res.content)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r"```json|```", "", res.content).strip()
+            llm_data = json.loads(cleaned)
 
+        raw_date = llm_data.get("date")
+        resolved_date = None
+
+        if raw_date:
+            is_iso = re.fullmatch(r'\d{4}-\d{2}-\d{2}', str(raw_date).strip())
+            if is_iso:
+                resolved_date = raw_date
+            else:
+                parsed = parse_arabic_date(raw_date)
+                resolved_date = parsed.strftime('%Y-%m-%d') if parsed else None
+        print("Resolved date" , resolved_date)
+        llm_data["date"] = resolved_date
+
+        return {"llm_response": llm_data, "dateParser": resolved_date}
     async def generate_response(self, context: str, summary: str = "") -> str:
         
         res = await self.llm.ainvoke(
@@ -178,7 +203,7 @@ OUTPUT FORMAT:
         return res.content
     
     
-    async def others_llm(self, message: str, summary: str = "") -> str:
+    async def others_llm(self, message: str) -> str:
         handle_others_prompt = """
 You are a polite and friendly clinic appointment assistant.
 
@@ -192,9 +217,6 @@ The user sent a message outside the assistant scope.
 
 Use the conversation history summary to make the reply feel personalized and natural.
 
-Conversation history summary:
-{history_summary}
-
 Current user message:
 {user_message}
 
@@ -205,7 +227,6 @@ Instructions:
   - booking appointments
   - canceling appointments
   - rescheduling appointments
-
 - Keep the response short and conversational.
 - Sound human and warm.
 - If possible, personalize the response using the history summary.
@@ -215,11 +236,11 @@ Instructions:
 
 Example tone:
 "أقدر سؤالك 😊 لكن هذه المحادثة مخصصة فقط لإدارة المواعيد، مثل الحجز أو الإلغاء أو تغيير الموعد. إذا حاب، أقدر أساعدك بحجز موعد أو تعديل موعدك الحالي."
-
+"شكرا لتزويدنا بهذه المعلومة سنسخدمها لتقديم خدمة أفضل لك في المستقبل ان شاء الله"
 Return ONLY the response message.
 """
         res = await self.llm.ainvoke(
-            [SystemMessage(content=handle_others_prompt.format(history_summary=summary, user_message=message)),HumanMessage(content=message)], 
+            [SystemMessage(content=handle_others_prompt.format( user_message=message)),HumanMessage(content=message)], 
             config={"callbacks": [self.langfuse_handler]}
         )
         return res.content

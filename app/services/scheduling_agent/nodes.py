@@ -1,6 +1,8 @@
 import re
 from urllib import response
 
+from pydantic import ValidationError
+
 from app.schemas.chat import AppoinementInfo
 from app.services import reservation_service
 from app.services.scheduling_agent.state import AgentState
@@ -37,7 +39,6 @@ def route_intent(state: AgentState):
     else:
         return "others_handler"
 
-
 async def extract_node(state: AgentState):
     print("[Extract Node] State before processing:")
     print("|")
@@ -45,25 +46,25 @@ async def extract_node(state: AgentState):
     try:
         last_message = state["messages"][-1].content
 
-        entities_str = await llm_service.extract_entities(last_message)
-        match = re.search(r"\{.*\}", entities_str, re.DOTALL)
-        if not match:
-            raise ValueError(f"No JSON found in response: {entities_str!r}")
-
-        data = json.loads(match.group())
+        extract_object = await llm_service.extract_entities(last_message)
+        
+        data = extract_object["llm_response"]  # already a dict now
+        print(data)
 
         appointment = AppoinementInfo.model_validate(data)
+
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
         print("Merged appointment data with memory:", appointment)
-        return {"entities": appointment}    
-    except json.JSONDecodeError as e:
-        print("Error decoding JSON:", e)
+        
+        return {"entities": appointment}
+
+    except ValidationError as e:
+        print("Validation error:", e)
         return {"entities": None}
     except Exception as e:
         print("Unexpected error:", e)
-        return {"entities": None}                   
-
+        return {"entities": None}
 
 async def validate_node(state: AgentState):
     print("[Validate Node] State before processing:")
@@ -73,6 +74,7 @@ async def validate_node(state: AgentState):
         return {"reponse" : "شكرا لتزيدي المعلومات. هل هناك أي شيء آخر يمكنني مساعدتك به؟" , "entities": state.get("entities", {}) , "status": "success"}
     missing_fields = []
     if not state.get("entities"):
+        print(state.get("entities"))
         return {
             "next_action": "missing_info",
             "response": "عذراً، لم أتمكن من استخراج المعلومات اللازمة من رسالتك. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون."
@@ -146,7 +148,7 @@ async def others_handler(state: AgentState):
     print("|")
     print("|")
     try : 
-        result = await llm_service.others_llm(state["messages"][-1].content, state.get("summary", ""))
+        result = await llm_service.others_llm(state["messages"][-1].content)
     except Exception as e:
         print("Error in others_handler:", e)
         result = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً."
@@ -197,7 +199,7 @@ async def reschedule_appointment(state: AgentState):
     print("|")
     print("|")
     try : 
-        result = await state.get("reservation").reschedule_reservation(state.get("entities").date, state.get("entities").time)
+        result = await state.get("reservation").reschedule_reservation(state.get("entities"))
    
         return {
         "response": result["message"],
@@ -206,7 +208,7 @@ async def reschedule_appointment(state: AgentState):
     except Exception as e:
         print("Error during rescheduling:", e)
         return {
-            "response": "عذراً، حدث خطأ أثناء محاولة إعادة جدولة موعدك. يرجى المحاولة مرة أخرى لاحقاً.",
+            "response":" حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
             "status": "failed"
         }
    

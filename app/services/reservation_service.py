@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from pymongo.errors import DuplicateKeyError
 from app.core.config import settings
 from datetime import datetime, time, UTC
-
+from app.schemas.chat import AppoinementInfo
 Time_Zone = ZoneInfo(settings.TIME_ZONE)
 
 
@@ -180,46 +180,45 @@ class ReservationService:
 
     async def reschedule_reservation(
         self,
-        new_date: str | None = None,
-        new_time: str | None = None,
-        duration_minutes: int = 30,
+    appointment_info: AppoinementInfo
     ) -> dict:
+        date = appointment_info.date
+        time = appointment_info.time
+
+
 
         reservation = await self.collection.find_one({"session_id": self.session_id})
 
         if not reservation:
             return {"status": "failed", "message": "لا يوجد حجز لإعادة جدولته."}
+        start_time = self._build_datetime(date, time)
 
-        current_start = reservation["start_time"]
+        end_time = start_time + timedelta(minutes=30)
+        if await self._is_past(start_time):
+            return {"status": "failed", "message": "لا يمكنك حجز موعد في الماضي."}
+        if not self._is_within_working_hours(start_time, end_time):
+            return {
+                "status": "failed",
+                "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
+            }
 
-        date_part = new_date if new_date else current_start.strftime("%Y-%m-%d")
-
-        time_part = new_time if new_time else current_start.strftime("%H:%M")
-
-        new_start = datetime.strptime(
-            f"{date_part} {time_part}", "%Y-%m-%d %H:%M"
-        ).replace(tzinfo=Time_Zone)
-
-        new_end = new_start + timedelta(minutes=duration_minutes)
 
         conflict = await self.collection.find_one(
             {
                 "_id": {"$ne": reservation["_id"]},
-                "start_time": {"$lt": new_end},
-                "end_time": {"$gt": new_start},
+                "start_time": {"$lt": end_time},
+                "end_time": {"$gt": start_time},
             }
         )
 
         if conflict:
             return {"status": "failed", "message": "الموعد الجديد غير متاح."}
-
-        # Update reservation
         await self.collection.update_one(
             {"_id": reservation["_id"]},
             {
                 "$set": {
-                    "start_time": new_start,
-                    "end_time": new_end,
+                    "start_time": start_time,
+                    "end_time": end_time,
                     "updated_at": datetime.now(Time_Zone),
                 }
             },
@@ -228,6 +227,6 @@ class ReservationService:
         return {
             "status": "success",
             "message": (
-                f"تم إعادة جدولة الموعد إلى " f"{new_start.strftime('%Y-%m-%d %H:%M')}"
+                f"تم إعادة جدولة الموعد إلى " f"{start_time.strftime('%Y-%m-%d %H:%M')}"
             ),
         }

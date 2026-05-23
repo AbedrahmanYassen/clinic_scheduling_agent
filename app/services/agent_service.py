@@ -15,16 +15,11 @@ class SchedulingAgentService    :
         conversation_memory_service = ConversationMemoryService(self.db)
         message_object = ChatMessage(role=chat_request.messages[-1].role, content=chat_request.messages[-1].content)
         await db_service.save_message(chat_request.session_id, message_object)
-        # summary = await db_service.get_latest_n(chat_request.session_id, 5)
         result = await agent_graph_builder.ainvoke({"messages": chat_request.messages, "reservation": self.reservation_service, "session_id": chat_request.session_id, "conversation_memory": conversation_memory_service})
         png_data = agent_graph_builder.get_graph().draw_mermaid_png()
 
-
         with open("langgraph.png", "wb") as f:
             f.write(png_data)
-
-        print("Saved!")
-
 
         return {
             "response" : result.get("response", ""),
