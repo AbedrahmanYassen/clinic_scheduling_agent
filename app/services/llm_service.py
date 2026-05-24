@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 from app.utils.date_parser import parse_arabic_date
 import json
 import re
+
 class LLMService:
     def __init__(self):
         
@@ -71,7 +72,7 @@ class LLMService:
 
 التصنيفات:
 - book → إذا كان المستخدم يريد حجز موعد جديد.
-- cancel → إذا كان المستخدم يريد إلغاء موعد.
+- cancel → إذا كان المستخدم يريد إلغاء موعد، أو أعرب عن عدم رضاه عن الموعد الحالي أو أنه لا يناسبه.
 - reschedule → إذا كان المستخدم يريد تغيير أو تأجيل أو إعادة جدولة موعد.
 - question → إذا كان المستخدم يسأل سؤالاً عاماً.
 - info → إذا كان المستخدم يرسل معلومات فقط مثل الاسم أو التاريخ أو الوقت بدون طلب واضح.
@@ -81,6 +82,8 @@ class LLMService:
 - لا تشرح.
 - لا تضف علامات ترقيم.
 - إذا لم يكن الطلب واضحاً اعتبره question.
+- إذا أعرب المستخدم عن رفض الموعد أو عدم ملاءمته دون ذكر موعد بديل، صنّفه cancel.
+- إذا أعرب عن رفض الموعد وذكر وقتاً أو يوماً بديلاً، صنّفه reschedule.
 
 أمثلة:
 
@@ -99,9 +102,20 @@ question
 المستخدم: اسمي أحمد وموعدي الثلاثاء
 info
 
+المستخدم: هذا الموعد ما يناسبني
+cancel
+
+المستخدم: ما أبغى هذا الموعد
+cancel
+
+المستخدم: هذا الوقت ما يصلح معي
+cancel
+
+المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
+reschedule
+
 الرسالة:
-{text}
-'''.format(text=message)),               
+{text}'''.format(text=message)),               
             HumanMessage(content=message)
         ]
         res = await self.llm.ainvoke(

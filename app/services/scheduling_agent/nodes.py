@@ -211,7 +211,6 @@ async def reschedule_appointment(state: AgentState):
             "response":" حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
             "status": "failed"
         }
-   
 
 
 
