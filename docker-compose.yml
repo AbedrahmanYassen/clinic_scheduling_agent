@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0-alpine
+    container_name: haven_mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123  # Change in production!
+      MONGO_INITDB_DATABASE: haven_db
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - haven_network
+
+  # FastAPI Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: haven_app
+    ports:
+      - "8000:80"
+    environment:
+      # Load from .env file
+      - PROJECT_NAME=Haven
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-Ollama}
+      - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/haven_db?authSource=admin
+      - DATABASE_NAME=haven_db
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-command-r7b-arabic:latest}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL_NAME=gemini-2.5-flash-lite
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_BASE_URL=https://cloud.langfuse.com
+      - Fanar_API_KEY=${Fanar_API_KEY}
+      - Electricity_Off=${Electricity_Off:-False}
+      - TIME_ZONE=Asia/Gaza
+      - DEBUG=${DEBUG:-False}
+      - HTTPS_ONLY=${HTTPS_ONLY:-False}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./app:/code/app
+      - ./static:/code/app/static
+    networks:
+      - haven_network
+    restart: unless-stopped
+
+  # Optional: Ollama Service (for local LLM - only if you use Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: haven_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    networks:
+      - haven_network
+    restart: unless-stopped
+    profiles:
+      - ollama  # Only run with: docker-compose --profile ollama up
+
+volumes:
+  mongodb_data:
+  ollama_data:
+
+networks:
+  haven_network:
+    driver: bridge
