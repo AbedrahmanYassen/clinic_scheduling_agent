@@ -16,16 +16,20 @@ class SchedulingAgentService    :
         message_object = ChatMessage(role=chat_request.messages[-1].role, content=chat_request.messages[-1].content)
         await db_service.save_message(chat_request.session_id, message_object)
         result = await agent_graph_builder.ainvoke({"messages": chat_request.messages, "reservation": self.reservation_service, "session_id": chat_request.session_id, "conversation_memory": conversation_memory_service})
-        png_data = agent_graph_builder.get_graph().draw_mermaid_png()
+        # png_data = agent_graph_builder.get_graph().draw_mermaid_png()
 
-        with open("langgraph.png", "wb") as f:
-            f.write(png_data)
-
-        return {
-            "response" : result.get("response", ""),
-            "entities" : jsonable_encoder(result.get("entities", {})), 
-            "status" : result.get("status", "") , 
-                "missing_fields": result.get("missing_fields", [])  
-        }
+        # with open("langgraph.png", "wb") as f:
+            # f.write(png_data)
+        if result.get("send_entities"): 
+            return {
+                "response" : result.get("response", ""),
+                "entities" : jsonable_encoder(result.get("entities", {})), 
+                "status" : result.get("status", "") , 
+            }
+        else : 
+            return {
+                "response" : result.get("response", ""),
+                "status" : result.get("status", "") , 
+            }
     
     

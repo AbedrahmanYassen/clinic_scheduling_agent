@@ -61,11 +61,18 @@ async def extract_node(state: AgentState):
 
     except ValidationError as e:
         print("Validation error:", e)
-        return {"entities": None}
+        return {
+            "entities": None,
+            "send_entities": False,
+            "response": "عذراً، حدث خطأ غير متوقع. يرجى المحاولة لاحقاً."
+        }
     except Exception as e:
         print("Unexpected error:", e)
-        return {"entities": None}
-
+        return {
+            "entities": None,
+            "send_entities": False,
+            "response": "عذراً، حدث خطأ غير متوقع. يرجى المحاولة لاحقاً."
+        }
 async def validate_node(state: AgentState):
     print("[Validate Node] State before processing:")
     print("|")
@@ -77,7 +84,8 @@ async def validate_node(state: AgentState):
         print(state.get("entities"))
         return {
             "next_action": "missing_info",
-            "response": "عذراً، لم أتمكن من استخراج المعلومات اللازمة من رسالتك. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون."
+            "response": "عذراً، لم أتمكن من استخراج المعلومات اللازمة من رسالتك. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون.",
+            "send_entities" : False 
         }
     
     if  not state["intent"] == "reschedule" and (state["entities"].name == "null" or not state["entities"].name):
@@ -95,13 +103,13 @@ async def validate_node(state: AgentState):
         print("Missing or invalid fields:", missing_fields)
         return {
             "next_action": "missing_info",
-            "response": f"هناك بعض الحقول المفقودة أو غير الصحيحة: {', '.join(missing_fields)}. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون."
+            "response": f"هناك بعض الحقول المفقودة أو غير الصحيحة: {', '.join(missing_fields)}. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون.",
+            "send_entities" : False 
         }
 
 
   
     return {
-        "response" : f"ممتاز! لدي جميع المعلومات اللازمة لحجز موعدك   في {state['entities'].date} الساعة {state['entities'].time}. لحظة واحدة بينما أؤكد الحجز.",
         "entities": state.get("entities"),
         }
     
@@ -133,13 +141,15 @@ async def book_appointment(state: AgentState):
         })
         return {
         "response": result["message"],
+        "send_entities" : True , 
         "status" : result["status"]
     }
     except Exception as e:
         print("Error during booking:", e)
         return {
             "response": "عذراً، حدث خطأ أثناء محاولة حجز موعدك. يرجى المحاولة مرة أخرى لاحقاً.",
-            "status": "failed"
+            "status": "failed", 
+            "send_entities" : False 
         }
  
 
@@ -148,13 +158,31 @@ async def others_handler(state: AgentState):
     print("|")
     print("|")
     try : 
-        result = await llm_service.others_llm(state["messages"][-1].content)
+        reservation = await state.get("reservation").get_reservation(session_id=state.get("session_id"))
+        if reservation and "appointment_info" in state.get("intent"):
+            return {
+                "entities": reservation,
+                "response": "إليك حجزك",
+                "status" : "success",
+                "send_entities" : True 
+            }
+        elif  "appointment_info" in state.get("intent"): 
+            return {
+                "entities": None,
+                "response": "ليس لديك أي حجوزات"  , 
+                "status" :"success", 
+                "send_entities" : False 
+            }
+        else : 
+            result = await llm_service.others_llm(state["messages"][-1].content)
+
     except Exception as e:
         print("Error in others_handler:", e)
         result = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً."
     return {
         "next_action": "respond",
-        "response": result
+        "response": result, 
+        "send_entities" : False 
     }
     
 async def send_response(state: AgentState):
@@ -165,7 +193,6 @@ async def send_response(state: AgentState):
                 "response": state.get("response", "عذراً، حدث خطأ ما.")
             }
         elif (state.get("status") == "failed") : 
-            state.get("reservation")
             start = datetime.strptime(
             f"{state.get('entities').date} {state.get('entities').time}", "%Y-%m-%d %H:%M")
             suggestions = await state.get("reservation").suggest_alternatives( start, 30)

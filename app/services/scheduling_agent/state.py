@@ -13,5 +13,6 @@ class AgentState(TypedDict):
     conversation_memory : ConversationMemoryService | None
     status : str | None
     summary : str | None
+    send_entities: bool | None 
 
 

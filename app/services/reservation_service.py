@@ -130,10 +130,8 @@ class ReservationService:
                 "status": "failed",
                 "message": "لقد تم أخذ هذه الفترة الزمنية للتو. حاول في وقت آخر.",
             }
-
-    async def get_reservations(self, name: str) -> List[dict]:
-        cursor = self.collection.find({"name": name}).sort("start_time", 1)
-        return await cursor.to_list(length=100)
+    async def get_reservation(self, session_id: str) -> dict | None:
+        return await self.collection.find_one({"session_id": session_id})
 
     async def suggest_alternatives(
         self,
