@@ -1,14 +1,11 @@
-# Multi-stage build for optimization
 FROM python:3.11-slim AS builder
 
 WORKDIR /code
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --user -r requirements.txt
@@ -17,22 +14,21 @@ FROM python:3.11-slim
 
 WORKDIR /code
 
+# ✅ Add this — installs SSL certificates
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m -u 1000 appuser
 
-# Copy Python dependencies from builder
 COPY --from=builder /root/.local /home/appuser/.local
 ENV PATH=/home/appuser/.local/bin:$PATH
 
-# Copy application code
 COPY ./app /code/app
 
-# Set correct permissions
 RUN chown -R appuser:appuser /code
 
 USER appuser
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:80/', timeout=5)" || exit 1
 
 EXPOSE 80
 
