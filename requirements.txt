@@ -9,3 +9,15 @@ python-dotenv
 motor
 pytz
 grandalf
+langchain-ollama
+langchain-google-genai
+langchain-openai>=1.2.1
+langfuse>=4.6.1
+pymongo
+pydantic-settings>=2.14.0
+dateparser>=1.4.0
+pymermaid>=1.7.1
+starlette
+azure-cli>=2.0.65
+ipython>=9.13.0
+itsdangerous

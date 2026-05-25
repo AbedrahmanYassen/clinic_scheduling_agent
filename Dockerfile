@@ -31,15 +31,11 @@ COPY ./app /code/app
 # Set correct permissions
 RUN chown -R appuser:appuser /code
 
-# Switch to non-root user
 USER appuser
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:80/', timeout=5)" || exit 1
 
-# Expose port
 EXPOSE 80
 
-# Run FastAPI
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]

@@ -30,11 +30,12 @@ class LLMService:
 
         if not settings.Electricity_Off:
             if settings.MODEL_PROVIDER == "Ollama":
-                self.llm = ChatOllama(
-                    model=settings.OLLAMA_MODEL,
-                    temperature=0.8,
-                    validate_model_on_init=True 
-                )
+                # self.llm = ChatOllama(
+                #     model=settings.OLLAMA_MODEL,
+                #     temperature=0.8,
+                #     validate_model_on_init=True 
+                # )
+                print("I am gonna remove Ollama soon ")
             elif settings.MODEL_PROVIDER == "Gemini":
                     self.llm = ChatGoogleGenerativeAI(
                     model=settings.GEMINI_MODEL_NAME,

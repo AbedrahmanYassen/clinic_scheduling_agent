@@ -7,6 +7,7 @@ from app.services.mock_llm_service import MockLLMService
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.sessions import SessionMiddleware
 from app.services.llm_service import LLMService
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,10 +31,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
-    secret_key="SuperSecretKeyLearningFastAPI",  
+    secret_key=settings.SESSION_SECRET_KEY,  
     max_age=3600,                             
     same_site="lax",                          
     https_only=True                         
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or specify your frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(chat.router, prefix="/api/v1")

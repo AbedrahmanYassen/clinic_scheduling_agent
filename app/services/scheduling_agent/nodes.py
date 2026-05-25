@@ -157,34 +157,39 @@ async def others_handler(state: AgentState):
     print("[Others Handler] State before processing:")
     print("|")
     print("|")
-    try : 
+    try:
         reservation = await state.get("reservation").get_reservation(session_id=state.get("session_id"))
+        print("Reservation" , reservation)
+        
         if reservation and "appointment_info" in state.get("intent"):
             return {
                 "entities": reservation,
                 "response": "إليك حجزك",
-                "status" : "success",
-                "send_entities" : True 
+                "status": "success",
+                "send_entities": True
             }
-        elif  "appointment_info" in state.get("intent"): 
+        elif "appointment_info" in state.get("intent"):
             return {
                 "entities": None,
-                "response": "ليس لديك أي حجوزات"  , 
-                "status" :"success", 
-                "send_entities" : False 
+                "response": "ليس لديك أي حجوزات",
+                "status": "success",
+                "send_entities": False
             }
-        else : 
+        else:
             result = await llm_service.others_llm(state["messages"][-1].content)
+            return {
+                "next_action": "respond",
+                "response": result,
+                "send_entities": False
+            }
 
     except Exception as e:
         print("Error in others_handler:", e)
-        result = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً."
-    return {
-        "next_action": "respond",
-        "response": result, 
-        "send_entities" : False 
-    }
-    
+        return {
+            "next_action": "respond",
+            "response": "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً.",
+            "send_entities": False
+        }
 async def send_response(state: AgentState):
     print("[Send Response Node] State before processing:")
     try : 
@@ -210,7 +215,6 @@ async def cancel_appointment(state: AgentState):
     print("|")
     try:
         result = await state.get("reservation").cancel_reservation()
-
         return {
         "response": result["message"],
         "status": result["status"]

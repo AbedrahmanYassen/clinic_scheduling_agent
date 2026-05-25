@@ -7,6 +7,9 @@ from pymongo.errors import DuplicateKeyError
 from app.core.config import settings
 from datetime import datetime, time, UTC
 from app.schemas.chat import AppoinementInfo
+from bson import ObjectId
+from datetime import datetime
+
 Time_Zone = ZoneInfo(settings.TIME_ZONE)
 
 
@@ -130,8 +133,26 @@ class ReservationService:
                 "status": "failed",
                 "message": "لقد تم أخذ هذه الفترة الزمنية للتو. حاول في وقت آخر.",
             }
-    async def get_reservation(self, session_id: str) -> dict | None:
-        return await self.collection.find_one({"session_id": session_id})
+
+    async def get_reservation(self, session_id: str) -> AppoinementInfo | None:
+        doc = await self.collection.find_one({"session_id": session_id})
+        if doc is None:
+            return None
+        
+        
+        start_time: datetime = doc.get("start_time")
+        if start_time:
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(Time_Zone)
+            else:
+                start_time = start_time.astimezone(Time_Zone)
+
+        return AppoinementInfo(
+            name=doc.get("name"),
+            service=doc.get("service"),
+            date=start_time.strftime("%Y-%m-%d") if start_time else None,
+            time=start_time.strftime("%I:%M %p") if start_time else None,
+        )
 
     async def suggest_alternatives(
         self,

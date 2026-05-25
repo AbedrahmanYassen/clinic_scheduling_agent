@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     LANGFUSE_BASE_URL: str
     TIME_ZONE: str = "Asia/Gaza"
     Fanar_API_KEY: str
+    SESSION_SECRET_KEY: str = "default-secret-change-in-production"
+
 
     class Config:
         env_file = ".env"

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # MongoDB Database
   mongodb:
-    image: mongo:7.0-alpine
+    image: mongo:7.0
     container_name: haven_mongodb
     ports:
       - "27017:27017"
@@ -21,7 +21,24 @@ services:
     networks:
       - haven_network
 
-  # FastAPI Application
+  # MongoDB GUI
+  mongo-express:
+    image: mongo-express:latest
+    container_name: haven_mongo_express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:admin123@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - haven_network
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -30,9 +47,8 @@ services:
     ports:
       - "8000:80"
     environment:
-      # Load from .env file
       - PROJECT_NAME=Haven
-      - MODEL_PROVIDER=${MODEL_PROVIDER:-Ollama}
+      - MODEL_PROVIDER=${MODEL_PROVIDER:-Fanar}
       - MONGODB_URL=mongodb://admin:admin123@mongodb:27017/haven_db?authSource=admin
       - DATABASE_NAME=haven_db
       - OLLAMA_MODEL=${OLLAMA_MODEL:-command-r7b-arabic:latest}
@@ -52,30 +68,12 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/code/app
-      - ./static:/code/app/static
     networks:
       - haven_network
     restart: unless-stopped
-
-  # Optional: Ollama Service (for local LLM - only if you use Ollama)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: haven_ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-    networks:
-      - haven_network
-    restart: unless-stopped
-    profiles:
-      - ollama  # Only run with: docker-compose --profile ollama up
 
 volumes:
   mongodb_data:
-  ollama_data:
 
 networks:
   haven_network:

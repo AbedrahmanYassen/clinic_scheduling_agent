@@ -5,7 +5,9 @@ from fastapi.encoders import jsonable_encoder
 from app.services.chat_history_service import ChatHistoryService
 from app.schemas.chat import ChatMessage
 from app.services.persistent_short_memory import ConversationMemoryService
-class SchedulingAgentService    :
+
+
+class SchedulingAgentService:
     def __init__(self, db, session_id: str = None):
         self.reservation_service = ReservationService(db, session_id=session_id)
         self.db = db
@@ -13,23 +15,33 @@ class SchedulingAgentService    :
     async def invoke_agent(self, chat_request):
         db_service = ChatHistoryService(self.db)
         conversation_memory_service = ConversationMemoryService(self.db)
-        message_object = ChatMessage(role=chat_request.messages[-1].role, content=chat_request.messages[-1].content)
+        message_object = ChatMessage(
+            role=chat_request.messages[-1].role,
+            content=chat_request.messages[-1].content,
+        )
         await db_service.save_message(chat_request.session_id, message_object)
-        result = await agent_graph_builder.ainvoke({"messages": chat_request.messages, "reservation": self.reservation_service, "session_id": chat_request.session_id, "conversation_memory": conversation_memory_service})
+        result = await agent_graph_builder.ainvoke(
+            {
+                "messages": chat_request.messages,
+                "reservation": self.reservation_service,
+                "session_id": chat_request.session_id,
+                "conversation_memory": conversation_memory_service,
+            }
+        )
         # png_data = agent_graph_builder.get_graph().draw_mermaid_png()
 
         # with open("langgraph.png", "wb") as f:
-            # f.write(png_data)
-        if result.get("send_entities"): 
+        # f.write(png_data)
+        if result.get("send_entities"):
             return {
-                "response" : result.get("response", ""),
-                "entities" : jsonable_encoder(result.get("entities", {})), 
-                "status" : result.get("status", "") , 
+                "response": result.get("response", ""),
+                "entities": jsonable_encoder(result.get("entities", {})),
+                "status": result.get("status", ""),
+                "send_entities": result.get("send_entities"),
             }
-        else : 
+        else:
             return {
-                "response" : result.get("response", ""),
-                "status" : result.get("status", "") , 
+                "response": result.get("response", ""),
+                "status": result.get("status", ""),
+                "send_entities": result.get("send_entities"),
             }
-    
-    
