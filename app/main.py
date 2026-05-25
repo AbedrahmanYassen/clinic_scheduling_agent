@@ -9,12 +9,22 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.services.llm_service import LLMService
 from fastapi.middleware.cors import CORSMiddleware
 import certifi
+import ssl
+
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+
     app.mongodb_client = AsyncIOMotorClient(
-        settings.MONGODB_URL, tlsCAFile=certifi.where()
+        settings.MONGODB_URL,
+        tls=True,
+        tlsCAFile=certifi.where(),
+        tlsAllowInvalidCertificates=True,
+        serverSelectionTimeoutMS=30000,
     )
     app.mongodb = app.mongodb_client[settings.DATABASE_NAME]
     print("Connected to MongoDB!")
