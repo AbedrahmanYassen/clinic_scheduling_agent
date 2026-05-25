@@ -8,10 +8,14 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.sessions import SessionMiddleware
 from app.services.llm_service import LLMService
 from fastapi.middleware.cors import CORSMiddleware
+import certifi
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
+    app.mongodb_client = AsyncIOMotorClient(
+        settings.MONGODB_URL, tlsCAFile=certifi.where()
+    )
     app.mongodb = app.mongodb_client[settings.DATABASE_NAME]
     print("Connected to MongoDB!")
     try:
@@ -26,15 +30,15 @@ async def lifespan(app: FastAPI):
     yield
     del app.state.llm_service
     app.mongodb_client.close()
-    
+
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.SESSION_SECRET_KEY,  
-    max_age=3600,                             
-    same_site="lax",                          
-    https_only=True                         
+    secret_key=settings.SESSION_SECRET_KEY,
+    max_age=3600,
+    same_site="lax",
+    https_only=True,
 )
 
 app.add_middleware(
