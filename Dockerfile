@@ -1,5 +1,5 @@
 # Multi-stage build for optimization
-FROM python:3.14-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /code
 
@@ -13,12 +13,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --user -r requirements.txt
 
-# Final stage
-FROM python:3.14-slim
+FROM python:3.11-slim
 
 WORKDIR /code
 
-# Create non-root user for security
 RUN useradd -m -u 1000 appuser
 
 # Copy Python dependencies from builder
