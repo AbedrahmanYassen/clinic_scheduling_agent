@@ -13,7 +13,7 @@ langchain-ollama
 langchain-google-genai
 langchain-openai>=1.2.1
 langfuse>=4.6.1
-pymongo==4.6.3
+pymongo[srv]==3.12
 pydantic-settings>=2.14.0
 dateparser>=1.4.0
 pymermaid>=1.7.1
