@@ -61,11 +61,3 @@ app.add_middleware(
 
 app.include_router(chat.router, prefix="/api/v1")
 
-
-'''
-user name: abdelrhman118
-password : yassenoCO
-package : python -m pip install "pymongo[srv]==3.12"
-connection string: mongodb+srv://<db_username>:<db_password>@cluster0.3wqtsbn.mongodb.net/?appName=Cluster0
-
-'''
