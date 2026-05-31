@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.api.v1 import chat
 from app.core.config import settings
-from app.services.llm_not_agent_services import NotAgentLLMService
 from app.services.mock_llm_service import MockLLMService
 from motor.motor_asyncio import AsyncIOMotorClient
+import os
 from starlette.middleware.sessions import SessionMiddleware
 from app.services.llm_service import LLMService
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,15 +18,15 @@ async def lifespan(app: FastAPI):
     ssl_context = ssl.create_default_context(cafile=certifi.where())
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
+    MONGO_URI = os.getenv("MONGODB_URI") or settings.MONGODB_URL
+    DATABASE_NAME = os.getenv("DATABASE_NAME") or settings.DATABASE_NAME
 
     app.mongodb_client = AsyncIOMotorClient(
-        settings.MONGODB_URL,
+        MONGO_URI,
         tls=True,
-        tlsCAFile=certifi.where(),
         tlsAllowInvalidCertificates=True,
-        serverSelectionTimeoutMS=30000,
     )
-    app.mongodb = app.mongodb_client[settings.DATABASE_NAME]
+    app.mongodb = app.mongodb_client[DATABASE_NAME]
     print("Connected to MongoDB!")
     try:
         if settings.Electricity_Off:
