@@ -18,8 +18,8 @@ async def lifespan(app: FastAPI):
     ssl_context = ssl.create_default_context(cafile=certifi.where())
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    MONGO_URI = os.getenv("MONGODB_URI") or settings.MONGODB_URL
-    DATABASE_NAME = os.getenv("DATABASE_NAME") or settings.DATABASE_NAME
+    MONGO_URI =  settings.MONGODB_URI
+    DATABASE_NAME =  settings.DATABASE_NAME
 
     app.mongodb_client = AsyncIOMotorClient(
         MONGO_URI,

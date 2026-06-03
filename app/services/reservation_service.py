@@ -20,7 +20,7 @@ class ReservationService:
 
     async def create_indexes(self):
         await self.collection.create_index(
-            [("session_id", 1), ("start_time", 1)], unique=True
+            [("start_time", 1)], unique=True
         )
 
     def _build_datetime(self, date: str, time: str) -> datetime:
@@ -91,13 +91,13 @@ class ReservationService:
         service = appointment_info.get("service")
 
         if not all([name, date, time]):
-            return {"status": "failed", "message": "هناك حقول مطلوبة مفقودة"}
+            return {"status": "failed", "message": "هناك حقول مطلوبة مفقودة", "type": "missing_info"}
 
         start_time = self._build_datetime(date, time)
 
         end_time = start_time + timedelta(minutes=30)
         if await self._is_past(start_time):
-            return {"status": "failed", "message": "لا يمكنك حجز موعد في الماضي."}
+            return {"status": "failed", "message": "لا يمكنك حجز موعد في الماضي.", "type": "past_date"}
         conflict_result = await self._has_conflict(start_time, end_time)
         if conflict_result["conflict"]:
             return conflict_result
@@ -105,6 +105,7 @@ class ReservationService:
             return {
                 "status": "failed",
                 "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
+                "type": "working_hours"
             }
 
         document = {
@@ -125,6 +126,7 @@ class ReservationService:
                     "start_time": start_time.strftime(
                         "%Y-%m-%d %H:%M"
                     )  # ✅ clean format
+                    , type: "success"
                 },
             }
 
@@ -132,6 +134,7 @@ class ReservationService:
             return {
                 "status": "failed",
                 "message": "لقد تم أخذ هذه الفترة الزمنية للتو. حاول في وقت آخر.",
+                "type": "exception"
             }
 
     async def get_reservation(self, session_id: str) -> AppoinementInfo | None:
@@ -209,7 +212,7 @@ class ReservationService:
         reservation = await self.collection.find_one({"session_id": self.session_id})
 
         if not reservation:
-            return {"status": "failed", "message": "لا يوجد حجز لإعادة جدولته."}
+            return {"status": "failed", "message": "لا يوجد حجز لإعادة جدولته.", "type": "no_reservation"}
         start_time = self._build_datetime(date, time)
 
         end_time = start_time + timedelta(minutes=30)
@@ -219,6 +222,7 @@ class ReservationService:
             return {
                 "status": "failed",
                 "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
+                "type": "outside_working_hours"
             }
 
 
@@ -231,7 +235,7 @@ class ReservationService:
         )
 
         if conflict:
-            return {"status": "failed", "message": "الموعد الجديد غير متاح."}
+            return {"status": "failed", "message": "الموعد الجديد غير متاح.", "type": "conflict"}
         await self.collection.update_one(
             {"_id": reservation["_id"]},
             {
@@ -248,4 +252,5 @@ class ReservationService:
             "message": (
                 f"تم إعادة جدولة الموعد إلى " f"{start_time.strftime('%Y-%m-%d %H:%M')}"
             ),
+            type: "success"
         }

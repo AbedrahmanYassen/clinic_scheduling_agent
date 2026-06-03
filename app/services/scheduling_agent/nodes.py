@@ -49,10 +49,11 @@ async def extract_node(state: AgentState):
         extract_object = await llm_service.extract_entities(last_message)
         
         data = extract_object["llm_response"]  # already a dict now
-        print(data)
-
+        if any(word in state.get("intent", "") for word in ["cancel", "reschedule", "book"]):
+            await state.get("conversation_memory").update_intent(state["session_id"], state["intent"])
+        if "others" in state.get("intent", "") :
+            state["intent"] = await state.get("conversation_memory").get_intent(state["session_id"])
         appointment = AppoinementInfo.model_validate(data)
-
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
         print("Merged appointment data with memory:", appointment)
@@ -142,6 +143,7 @@ async def book_appointment(state: AgentState):
         return {
         "send_entities" : True , 
         "status" : result["status"], 
+        "response": result["message"],
         "next_action" : result.get("type", None) 
         }
     except Exception as e:
@@ -238,7 +240,7 @@ async def reschedule_appointment(state: AgentState):
         result = await state.get("reservation").reschedule_reservation(state.get("entities"))
 
         # If there's no existing reservation, route to book_appointment
-        if result.get("status") == "failed" and ("لا يوجد" in result.get("message", "") or "لم يتم العثور" in result.get("message", "")):
+        if result.get("status") == "failed" and result.get("type") == "no_reservation":
             return {
                 "next_action": "book_appointment",
                 "response": "لم يتم العثور على حجز لإعادة جدولته. هل تود حجز موعد جديد؟",

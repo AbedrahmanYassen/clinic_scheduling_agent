@@ -19,7 +19,7 @@ router = APIRouter()
 
 
     
-@router.post("/test_chat")
+@router.post("/chat")
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
     session_id = chat_request.session_id
 

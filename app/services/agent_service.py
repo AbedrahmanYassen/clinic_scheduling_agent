@@ -31,7 +31,7 @@ class SchedulingAgentService:
         # png_data = agent_graph_builder.get_graph().draw_mermaid_png()
 
         # with open("langgraph.png", "wb") as f:
-        # f.write(png_data)
+        #     f.write(png_data)
         if result.get("send_entities"):
             return {
                 "response": result.get("response", ""),

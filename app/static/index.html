@@ -157,8 +157,9 @@ async function sendMessage() {
         }
 
         const sessionId = localStorage.getItem('chat_session_id');
-
-        const response = await fetch('https://clinic-scheduling-agent.onrender.com/api/v1/chat', {
+        const apiUrl = 'https://clinic-scheduling-agent.onrender.com/';
+        const localApiUrl = 'http://localhost:8000/';
+        const response = await fetch('http://127.0.0.1:8000/api/v1/chat', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },

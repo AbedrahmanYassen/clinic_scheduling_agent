@@ -21,7 +21,17 @@ class ConversationMemoryService:
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=TZ)
         return created_at.date() < datetime.now(TZ).date()
-
+    async def update_intent(self, session_id: str, intent: str):
+        await self.collection.update_one(
+            {"session_id": session_id},
+            {"$set": {"intent": intent, "updated_at": datetime.now(TZ)}},
+            upsert=True
+        )
+    async def get_intent(self, session_id: str) -> str:
+        memory = await self.collection.find_one({"session_id": session_id})
+        if not memory:
+            return None
+        return memory.get("intent")
     async def update_memory(self, session_id: str, entities):
         update_fields = {
             "updated_at": datetime.now(TZ)
@@ -58,6 +68,7 @@ class ConversationMemoryService:
             update_query,
             upsert=True
         )
+
 
     async def get_memory(self, session_id: str) -> dict:
         memory = await self.collection.find_one({"session_id": session_id})

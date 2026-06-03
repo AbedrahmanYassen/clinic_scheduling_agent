@@ -32,10 +32,17 @@ builder.add_conditional_edges(
         "others_handler": "others_handler",
     }
 )
-
+builder.add_conditional_edges(
+    "reschedule_appointment",
+    post_rescheduling_router,
+    {
+        "book_appointment": "book_appointment",
+        "others_handler": "others_handler",
+    }
+)
 builder.add_edge("book_appointment", "send_response")
 builder.add_edge("send_response", END)
 builder.add_edge("extract_node", "validate_node")
 builder.add_edge("cancel_appointment", END)
-builder.add_edge("reschedule_appointment", END)
+builder.add_edge("others_handler", END)
 agent = builder.compile()

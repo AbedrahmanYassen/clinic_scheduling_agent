@@ -259,3 +259,23 @@ Return ONLY the response message.
             config={"callbacks": [self.langfuse_handler]}
         )
         return res.content
+    
+
+    async def generate_missing_info_response(self, entities: dict) -> str:
+        missing_fields = [field for field, value in entities.items() if value is None]
+        if not missing_fields:
+            return ""
+        
+        field_names = {
+            "name": "الاسم",
+            "date": "التاريخ",
+            "time": "الوقت",
+            "service": "الخدمة"
+        }
+        missing_arabic = [field_names.get(field, field) for field in missing_fields]
+        if len(missing_arabic) == 1:
+            return f" من فضلك زودني ب{missing_arabic[0]}."
+        else:
+            all_but_last = ", ".join(missing_arabic[:-1])
+            last = missing_arabic[-1]
+            return f" من فضلك زودني ب{all_but_last} و {last}."
