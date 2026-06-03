@@ -37,7 +37,7 @@ builder.add_conditional_edges(
     post_rescheduling_router,
     {
         "book_appointment": "book_appointment",
-        "others_handler": "others_handler",
+        "END": END,
     }
 )
 builder.add_edge("book_appointment", "send_response")

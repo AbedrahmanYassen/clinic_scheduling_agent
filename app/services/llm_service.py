@@ -58,7 +58,7 @@ class LLMService:
         self.langfuse.flush()
 
 
-    async def classify_intent(self, message: str, history: str) -> str:
+    async def classify_intent(self, message: str , history: str) -> str:
         prompt = [
             SystemMessage(content='''
 أنت مصنف نوايا لمساعد حجز مواعيد في عيادة.
@@ -69,12 +69,14 @@ class LLMService:
 - book
 - cancel
 - reschedule
+- appointment_info
 - info
 
 التصنيفات:
 - book → إذا كان المستخدم يريد حجز موعد جديد.
 - cancel → إذا كان المستخدم يريد إلغاء موعد، أو أعرب عن عدم رضاه عن الموعد الحالي أو أنه لا يناسبه.
 - reschedule → إذا كان المستخدم يريد تغيير أو تأجيل أو إعادة جدولة موعد.
+- appointment_info → إذا أراد المستخدم أن يرى معلومات عن موعده الحالي أو السابق.
 - info → إذا كان المستخدم يرسل معلومات فقط مثل الاسم أو التاريخ أو الوقت بدون طلب واضح.
 
 قواعد مهمة:
@@ -107,6 +109,8 @@ cancel
 المستخدم: هذا الوقت ما يصلح معي
 cancel
 
+متى موعدي الحالي؟
+appointment_info
 المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
 reschedule
 أخر 3 رسائل من المستخدم:
@@ -133,7 +137,7 @@ reschedule
     FIELDS
     -----------------------
     - name: string or null
-    - service: string or null
+    - service: string or null : any symptopm or pain the user mentioned.
     - date: Return in ISO format YYYY-MM-DD if you're confident, 
             OR return the date expression in natural Arabic (e.g. "بكرة", "الخميس الجاي", "نهاية الأسبوع") if unclear.
             Return null ONLY if no date was mentioned at all.
@@ -257,7 +261,7 @@ Return ONLY the response message.
         return res.content
     
 
-    def generate_missing_info_response(self, entities: dict) -> str:
+    async def generate_missing_info_response(self, entities: dict) -> str:
         missing_fields = [field for field, value in entities.items() if value is None]
         if not missing_fields:
             return ""

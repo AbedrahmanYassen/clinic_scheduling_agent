@@ -96,7 +96,8 @@ async def validate_node(state: AgentState):
 
     if state["entities"].time in [None, "null"] :
         missing_fields.append("time")
-
+    if state["entities"].service in [None, "null"] :
+        state["entities"].service = "عام"
     if missing_fields  :
         print("Missing or invalid fields:", missing_fields)
         return {
@@ -135,7 +136,8 @@ async def book_appointment(state: AgentState):
         result = await state.get("reservation").create_reservation({
         "name": state["entities"].name,
         "date": state["entities"].date,
-        "time": state["entities"].time
+        "time": state["entities"].time, 
+        "service": state["entities"].service
         })
         return {
         "send_entities" : True , 
@@ -264,6 +266,6 @@ def post_rescheduling_router(state: AgentState):
     if next_action == "book_appointment":
         return "book_appointment"
     else:
-        return "others_handler"
+        return "END"
 
 
