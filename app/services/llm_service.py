@@ -58,31 +58,29 @@ class LLMService:
         self.langfuse.flush()
 
 
-    async def classify_intent(self, message: str) -> str:
+    async def classify_intent(self, message: str, history: str) -> str:
         prompt = [
             SystemMessage(content='''
 أنت مصنف نوايا لمساعد حجز مواعيد في عيادة.
 
 مهمتك هي قراءة رسالة المستخدم باللغة العربية وإرجاع كلمة واحدة فقط من القائمة التالية:
 
+و عليك قراءة أخر تلات رسائل المستخدم في المحادثة لأخذ فكرة عن سياق الحديث و لتقديم تصنيف أدق للنوايا، لكن لا تذكر هذه الرسائل في التصنيف، فقط استخدمها كخلفية لفهم أفضل.
 - book
 - cancel
 - reschedule
-- booking_info
 - info
 
 التصنيفات:
 - book → إذا كان المستخدم يريد حجز موعد جديد.
 - cancel → إذا كان المستخدم يريد إلغاء موعد، أو أعرب عن عدم رضاه عن الموعد الحالي أو أنه لا يناسبه.
 - reschedule → إذا كان المستخدم يريد تغيير أو تأجيل أو إعادة جدولة موعد.
-- appointment_info → إذا المستخدم طلب معلومات حجزه
 - info → إذا كان المستخدم يرسل معلومات فقط مثل الاسم أو التاريخ أو الوقت بدون طلب واضح.
 
 قواعد مهمة:
 - أرجع كلمة واحدة فقط.
 - لا تشرح.
 - لا تضف علامات ترقيم.
-- إذا لم يكن الطلب واضحاً اعتبره question.
 - إذا أعرب المستخدم عن رفض الموعد أو عدم ملاءمته دون ذكر موعد بديل، صنّفه cancel.
 - إذا أعرب عن رفض الموعد وذكر وقتاً أو يوماً بديلاً، صنّفه reschedule.
 
@@ -96,9 +94,6 @@ cancel
 
 المستخدم: بدي أغير موعدي للساعة 5
 reschedule
-
-المستخدم: ما هي ساعات الدوام؟
-question
 
 المستخدم: اسمي أحمد وموعدي الثلاثاء
 info
@@ -114,9 +109,10 @@ cancel
 
 المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
 reschedule
-
+أخر 3 رسائل من المستخدم:
+{history}
 الرسالة:
-{text}'''.format(text=message)),               
+{text}'''.format(text=message , history=history)),               
             HumanMessage(content=message)
         ]
         res = await self.llm.ainvoke(
@@ -261,7 +257,7 @@ Return ONLY the response message.
         return res.content
     
 
-    async def generate_missing_info_response(self, entities: dict) -> str:
+    def generate_missing_info_response(self, entities: dict) -> str:
         missing_fields = [field for field, value in entities.items() if value is None]
         if not missing_fields:
             return ""

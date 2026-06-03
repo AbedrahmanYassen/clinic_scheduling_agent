@@ -1,10 +1,15 @@
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 from app.core.config import settings
 
 class SummaryService:
     def __init__(self,):
-        self.llm = ChatOllama(model=settings.OLLAMA_MODEL, temperature=0.8, validate_model_on_init=True)
+        self.llm = ChatOpenAI(
+                    base_url="https://api.fanar.qa/v1",
+                    api_key=settings.Fanar_API_KEY,
+                    model="Fanar",
+                )
 
     async def summarize_history(self, history_text: str) -> str:
         prompt = f"""

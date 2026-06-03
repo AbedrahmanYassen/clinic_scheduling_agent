@@ -1,6 +1,7 @@
 import re
 from urllib import response
 
+from matplotlib import text
 from pydantic import ValidationError
 
 from app.schemas.chat import AppoinementInfo
@@ -20,7 +21,7 @@ async def intent_node(state: AgentState):
     await state.get("reservation").cleanup_old_reservations()
     last_message = state["messages"][-1].content
 
-    intent = await llm_service.classify_intent(last_message)
+    intent = await llm_service.classify_intent(last_message , state.get("summary", ""))
     print("Classified intent:", intent)
 
     return {
@@ -49,10 +50,6 @@ async def extract_node(state: AgentState):
         extract_object = await llm_service.extract_entities(last_message)
         
         data = extract_object["llm_response"]  # already a dict now
-        if any(word in state.get("intent", "") for word in ["cancel", "reschedule", "book"]):
-            await state.get("conversation_memory").update_intent(state["session_id"], state["intent"])
-        if "others" in state.get("intent", "") :
-            state["intent"] = await state.get("conversation_memory").get_intent(state["session_id"])
         appointment = AppoinementInfo.model_validate(data)
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
@@ -202,7 +199,7 @@ async def send_response(state: AgentState):
             }
         elif(state.get("next_action") == "missing_info") : 
             return {
-                "response":  llm_service.generate_missing_info_response(state.get("entities"))
+                "response":   llm_service.generate_missing_info_response(state.get("entities"))
             }
         elif (state.get("status") == "failed") : 
             start = datetime.strptime(

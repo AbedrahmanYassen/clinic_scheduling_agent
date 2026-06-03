@@ -5,6 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from app.services.chat_history_service import ChatHistoryService
 from app.schemas.chat import ChatMessage
 from app.services.persistent_short_memory import ConversationMemoryService
+from app.services.summary_service import SummaryService
 
 
 class SchedulingAgentService:
@@ -20,12 +21,21 @@ class SchedulingAgentService:
             content=chat_request.messages[-1].content,
         )
         await db_service.save_message(chat_request.session_id, message_object)
+        db_history = await db_service.get_history(chat_request.session_id)
+
+        last_messages = db_history[-4:-1]
+        
+        history_text = "\n".join(
+            f"{msg['role']}: {msg['content']}"
+            for msg in last_messages
+        )
         result = await agent_graph_builder.ainvoke(
             {
                 "messages": chat_request.messages,
                 "reservation": self.reservation_service,
                 "session_id": chat_request.session_id,
                 "conversation_memory": conversation_memory_service,
+                "summary": history_text
             }
         )
         # png_data = agent_graph_builder.get_graph().draw_mermaid_png()
