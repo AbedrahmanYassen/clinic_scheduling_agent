@@ -45,7 +45,7 @@ async def get_index():
     with open("app/static/index.html", "r",  encoding="utf-8") as f:
         return f.read()
     
-@router.post("/test_agent")
+@router.post("/chat")
 async def test_agent(request: Request, chat_request: ChatRequest):
     scheduling_agent_service = SchedulingAgentService(request.app.mongodb, session_id=chat_request.session_id)
     result = await scheduling_agent_service.invoke_agent(chat_request)

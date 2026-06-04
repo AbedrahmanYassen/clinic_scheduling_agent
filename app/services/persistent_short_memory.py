@@ -17,11 +17,9 @@ class ConversationMemoryService:
         created_at = memory.get("created_at")
         if not created_at:
             return False
-        # Handle both aware and naive datetimes
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=TZ)
         return created_at.date() < datetime.now(TZ).date()
-
     async def update_memory(self, session_id: str, entities):
         update_fields = {
             "updated_at": datetime.now(TZ)
@@ -58,6 +56,7 @@ class ConversationMemoryService:
             update_query,
             upsert=True
         )
+
 
     async def get_memory(self, session_id: str) -> dict:
         memory = await self.collection.find_one({"session_id": session_id})

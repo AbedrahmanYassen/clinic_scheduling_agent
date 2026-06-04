@@ -30,11 +30,12 @@ class LLMService:
 
         if not settings.Electricity_Off:
             if settings.MODEL_PROVIDER == "Ollama":
-                self.llm = ChatOllama(
-                    model=settings.OLLAMA_MODEL,
-                    temperature=0.8,
-                    validate_model_on_init=True 
-                )
+                # self.llm = ChatOllama(
+                #     model=settings.OLLAMA_MODEL,
+                #     temperature=0.8,
+                #     validate_model_on_init=True 
+                # )
+                print("I am gonna remove Ollama soon ")
             elif settings.MODEL_PROVIDER == "Gemini":
                     self.llm = ChatGoogleGenerativeAI(
                     model=settings.GEMINI_MODEL_NAME,
@@ -57,31 +58,31 @@ class LLMService:
         self.langfuse.flush()
 
 
-    async def classify_intent(self, message: str) -> str:
+    async def classify_intent(self, message: str , history: str) -> str:
         prompt = [
             SystemMessage(content='''
 أنت مصنف نوايا لمساعد حجز مواعيد في عيادة.
 
 مهمتك هي قراءة رسالة المستخدم باللغة العربية وإرجاع كلمة واحدة فقط من القائمة التالية:
 
+و عليك قراءة أخر تلات رسائل المستخدم في المحادثة لأخذ فكرة عن سياق الحديث و لتقديم تصنيف أدق للنوايا، لكن لا تذكر هذه الرسائل في التصنيف، فقط استخدمها كخلفية لفهم أفضل.
 - book
 - cancel
 - reschedule
-- booking_info
+- appointment_info
 - info
 
 التصنيفات:
 - book → إذا كان المستخدم يريد حجز موعد جديد.
 - cancel → إذا كان المستخدم يريد إلغاء موعد، أو أعرب عن عدم رضاه عن الموعد الحالي أو أنه لا يناسبه.
 - reschedule → إذا كان المستخدم يريد تغيير أو تأجيل أو إعادة جدولة موعد.
-- appointment_info → إذا المستخدم طلب معلومات حجزه
+- appointment_info → إذا أراد المستخدم أن يرى معلومات عن موعده الحالي أو السابق.
 - info → إذا كان المستخدم يرسل معلومات فقط مثل الاسم أو التاريخ أو الوقت بدون طلب واضح.
 
 قواعد مهمة:
 - أرجع كلمة واحدة فقط.
 - لا تشرح.
 - لا تضف علامات ترقيم.
-- إذا لم يكن الطلب واضحاً اعتبره question.
 - إذا أعرب المستخدم عن رفض الموعد أو عدم ملاءمته دون ذكر موعد بديل، صنّفه cancel.
 - إذا أعرب عن رفض الموعد وذكر وقتاً أو يوماً بديلاً، صنّفه reschedule.
 
@@ -96,9 +97,6 @@ cancel
 المستخدم: بدي أغير موعدي للساعة 5
 reschedule
 
-المستخدم: ما هي ساعات الدوام؟
-question
-
 المستخدم: اسمي أحمد وموعدي الثلاثاء
 info
 
@@ -111,11 +109,18 @@ cancel
 المستخدم: هذا الوقت ما يصلح معي
 cancel
 
+متى موعدي الحالي؟
+appointment_info
 المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
 reschedule
-
+                          
+بدي أغير اسمي في الحجز  
+reschedule             
+                                       
+أخر 3 رسائل من المستخدم:
+{history}
 الرسالة:
-{text}'''.format(text=message)),               
+{text}'''.format(text=message , history=history)),               
             HumanMessage(content=message)
         ]
         res = await self.llm.ainvoke(
@@ -136,7 +141,7 @@ reschedule
     FIELDS
     -----------------------
     - name: string or null
-    - service: string or null
+    - service: string or null : any symptopm or pain the user mentioned.
     - date: Return in ISO format YYYY-MM-DD if you're confident, 
             OR return the date expression in natural Arabic (e.g. "بكرة", "الخميس الجاي", "نهاية الأسبوع") if unclear.
             Return null ONLY if no date was mentioned at all.
@@ -258,3 +263,23 @@ Return ONLY the response message.
             config={"callbacks": [self.langfuse_handler]}
         )
         return res.content
+    
+
+    def generate_missing_info_response(self, entities: dict) -> str:
+        missing_fields = [field for field, value in entities.items() if value is None]
+        if not missing_fields:
+            return ""
+        
+        field_names = {
+            "name": "الاسم",
+            "date": "التاريخ",
+            "time": "الوقت",
+            "service": "الخدمة"
+        }
+        missing_arabic = [field_names.get(field, field) for field in missing_fields]
+        if len(missing_arabic) == 1:
+            return f" من فضلك زودني ب{missing_arabic[0]}."
+        else:
+            all_but_last = ", ".join(missing_arabic[:-1])
+            last = missing_arabic[-1]
+            return f" من فضلك زودني ب{all_but_last} و {last}."

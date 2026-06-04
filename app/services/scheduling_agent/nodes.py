@@ -1,14 +1,11 @@
-import re
 from urllib import response
-
+from matplotlib import text
 from pydantic import ValidationError
-
 from app.schemas.chat import AppoinementInfo
 from app.services import reservation_service
 from app.services.scheduling_agent.state import AgentState
 from app.services.llm_service import LLMService
 from datetime import datetime
-import json
 
 llm_service = LLMService()
 
@@ -16,11 +13,11 @@ async def intent_node(state: AgentState):
     print("[Intent Node] State before processing:")
     print("|")
     print("|")
-    # the next line is temporary solution to cleanup old reservations until we implement a proper background task or cron job for that
+    print("Classifying intent for message:", state["messages"][-1].content)
     await state.get("reservation").cleanup_old_reservations()
     last_message = state["messages"][-1].content
 
-    intent = await llm_service.classify_intent(last_message)
+    intent = await llm_service.classify_intent(last_message , state.get("summary", ""))
     print("Classified intent:", intent)
 
     return {
@@ -49,10 +46,7 @@ async def extract_node(state: AgentState):
         extract_object = await llm_service.extract_entities(last_message)
         
         data = extract_object["llm_response"]  # already a dict now
-        print(data)
-
         appointment = AppoinementInfo.model_validate(data)
-
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
         print("Merged appointment data with memory:", appointment)
@@ -88,7 +82,7 @@ async def validate_node(state: AgentState):
             "send_entities" : False 
         }
     
-    if  not state["intent"] == "reschedule" and (state["entities"].name == "null" or not state["entities"].name):
+    if  not ("reschedule" not in state["intent"] ) and (state["entities"].name == "null" or not state["entities"].name):
         missing_fields.append("name")
 
     print("entities after merging with memory:", state.get("entities", {}))
@@ -98,7 +92,8 @@ async def validate_node(state: AgentState):
 
     if state["entities"].time in [None, "null"] :
         missing_fields.append("time")
-
+    if state["entities"].service in [None, "null"] :
+        state["entities"].service = "عام"
     if missing_fields  :
         print("Missing or invalid fields:", missing_fields)
         return {
@@ -117,13 +112,13 @@ async def validate_node(state: AgentState):
 def post_validation_router(state: AgentState):
     
     next_action = state.get("next_action")
-
-    if "book" in state.get("intent", "") :
+    if next_action == "missing_info" and "reschedule" not in state.get("intent", ""):
+        print("Routing to send_response due to missing info")
+        return "send_response"
+    elif "book" in state.get("intent", "") :
         return "book_appointment"
     elif "reschedule" in state.get("intent", ""):
         return "reschedule_appointment"
-    elif next_action == "missing_info":
-        return "send_response"
     else:
         return "others_handler"
 
@@ -137,13 +132,15 @@ async def book_appointment(state: AgentState):
         result = await state.get("reservation").create_reservation({
         "name": state["entities"].name,
         "date": state["entities"].date,
-        "time": state["entities"].time
+        "time": state["entities"].time, 
+        "service": state["entities"].service
         })
         return {
-        "response": result["message"],
         "send_entities" : True , 
-        "status" : result["status"]
-    }
+        "status" : result["status"], 
+        "response": result["message"],
+        "next_action" : result.get("type", None) 
+        }
     except Exception as e:
         print("Error during booking:", e)
         return {
@@ -157,41 +154,56 @@ async def others_handler(state: AgentState):
     print("[Others Handler] State before processing:")
     print("|")
     print("|")
-    try : 
+    try:
         reservation = await state.get("reservation").get_reservation(session_id=state.get("session_id"))
+        print("Reservation" , reservation)
+        
         if reservation and "appointment_info" in state.get("intent"):
             return {
                 "entities": reservation,
                 "response": "إليك حجزك",
-                "status" : "success",
-                "send_entities" : True 
+                "status": "success",
+                "send_entities": True
             }
-        elif  "appointment_info" in state.get("intent"): 
+        elif "appointment_info" in state.get("intent"):
             return {
                 "entities": None,
-                "response": "ليس لديك أي حجوزات"  , 
-                "status" :"success", 
-                "send_entities" : False 
+                "response": "ليس لديك أي حجوزات",
+                "status": "success",
+                "send_entities": False
             }
-        else : 
+        else:
             result = await llm_service.others_llm(state["messages"][-1].content)
+            return {
+                "next_action": "respond",
+                "response": result,
+                "send_entities": False
+            }
 
     except Exception as e:
         print("Error in others_handler:", e)
-        result = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً."
-    return {
-        "next_action": "respond",
-        "response": result, 
-        "send_entities" : False 
-    }
-    
+        return {
+            "next_action": "respond",
+            "response": "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى لاحقاً.",
+            "send_entities": False
+        }
 async def send_response(state: AgentState):
     print("[Send Response Node] State before processing:")
+    print("current state:", state)
     try : 
         if(state.get("status") == "success") : 
             return {
                 "response": state.get("response", "عذراً، حدث خطأ ما.")
             }
+        elif(state.get("next_action") == "missing_info") : 
+            if state.get("entities") :
+                return {
+                    "response":   llm_service.generate_missing_info_response(state.get("entities"))
+                }
+            else :
+                return {
+                    "response": state.get("response", "عذراً، حدث خطأ ما.")
+                }
         elif (state.get("status") == "failed") : 
             start = datetime.strptime(
             f"{state.get('entities').date} {state.get('entities').time}", "%Y-%m-%d %H:%M")
@@ -210,7 +222,6 @@ async def cancel_appointment(state: AgentState):
     print("|")
     try:
         result = await state.get("reservation").cancel_reservation()
-
         return {
         "response": result["message"],
         "status": result["status"]
@@ -225,20 +236,34 @@ async def reschedule_appointment(state: AgentState):
     print("[Reschedule Appointment Node] State before processing:")
     print("|")
     print("|")
-    try : 
-        result = await state.get("reservation").reschedule_reservation(state.get("entities"))
-   
+    # try:
+    result = await state.get("reservation").reschedule_reservation(state.get("entities"))
+
+    if result.get("status") == "failed" and result.get("type") == "no_reservation":
         return {
-        "response": result["message"],
-        "status": result["status"]}
-    
-    except Exception as e:
-        print("Error during rescheduling:", e)
-        return {
-            "response":" حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
-            "status": "failed"
+            "next_action": "book_appointment",
+            "response": "لم يتم العثور على حجز لإعادة جدولته. هل تود حجز موعد جديد؟",
+            "send_entities": False
         }
 
+    return {
+        "response": result["message"],
+        "status": result["status"]
+    }
+
+    # except Exception as e:
+        # return {
+        #     "response": " حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
+        #     "status": "failed"
+        # }
 
 
+
+def post_rescheduling_router(state: AgentState):
+    
+    next_action = state.get("next_action")
+    if next_action == "book_appointment":
+        return "book_appointment"
+    else:
+        return "END"
 
