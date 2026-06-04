@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
 
     app.mongodb_client = AsyncIOMotorClient(
         MONGO_URI,
+        tls=True,
     )
     app.mongodb = app.mongodb_client[DATABASE_NAME]
     print("Connected to MongoDB!")
