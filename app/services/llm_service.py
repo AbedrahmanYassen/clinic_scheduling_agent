@@ -113,6 +113,10 @@ cancel
 appointment_info
 المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
 reschedule
+                          
+بدي أغير اسمي في الحجز  
+reschedule             
+                                       
 أخر 3 رسائل من المستخدم:
 {history}
 الرسالة:
@@ -261,7 +265,7 @@ Return ONLY the response message.
         return res.content
     
 
-    async def generate_missing_info_response(self, entities: dict) -> str:
+    def generate_missing_info_response(self, entities: dict) -> str:
         missing_fields = [field for field, value in entities.items() if value is None]
         if not missing_fields:
             return ""

@@ -1,9 +1,6 @@
-import re
 from urllib import response
-
 from matplotlib import text
 from pydantic import ValidationError
-
 from app.schemas.chat import AppoinementInfo
 from app.services import reservation_service
 from app.services.scheduling_agent.state import AgentState
@@ -17,7 +14,6 @@ async def intent_node(state: AgentState):
     print("|")
     print("|")
     print("Classifying intent for message:", state["messages"][-1].content)
-    # the next line is temporary solution to cleanup old reservations until we implement a proper background task or cron job for that
     await state.get("reservation").cleanup_old_reservations()
     last_message = state["messages"][-1].content
 
@@ -116,7 +112,7 @@ async def validate_node(state: AgentState):
 def post_validation_router(state: AgentState):
     
     next_action = state.get("next_action")
-    if next_action == "missing_info":
+    if next_action == "missing_info" and "reschedule" not in state.get("intent", ""):
         print("Routing to send_response due to missing info")
         return "send_response"
     elif "book" in state.get("intent", "") :
@@ -200,9 +196,14 @@ async def send_response(state: AgentState):
                 "response": state.get("response", "عذراً، حدث خطأ ما.")
             }
         elif(state.get("next_action") == "missing_info") : 
-            return {
-                "response":   llm_service.generate_missing_info_response(state.get("entities"))
-            }
+            if state.get("entities") :
+                return {
+                    "response":   llm_service.generate_missing_info_response(state.get("entities"))
+                }
+            else :
+                return {
+                    "response": state.get("response", "عذراً، حدث خطأ ما.")
+                }
         elif (state.get("status") == "failed") : 
             start = datetime.strptime(
             f"{state.get('entities').date} {state.get('entities').time}", "%Y-%m-%d %H:%M")
@@ -235,28 +236,26 @@ async def reschedule_appointment(state: AgentState):
     print("[Reschedule Appointment Node] State before processing:")
     print("|")
     print("|")
-    try:
-        result = await state.get("reservation").reschedule_reservation(state.get("entities"))
+    # try:
+    result = await state.get("reservation").reschedule_reservation(state.get("entities"))
 
-        # If there's no existing reservation, route to book_appointment
-        if result.get("status") == "failed" and result.get("type") == "no_reservation":
-            return {
-                "next_action": "book_appointment",
-                "response": "لم يتم العثور على حجز لإعادة جدولته. هل تود حجز موعد جديد؟",
-                "send_entities": False
-            }
-
+    if result.get("status") == "failed" and result.get("type") == "no_reservation":
         return {
-            "response": result["message"],
-            "status": result["status"]
+            "next_action": "book_appointment",
+            "response": "لم يتم العثور على حجز لإعادة جدولته. هل تود حجز موعد جديد؟",
+            "send_entities": False
         }
 
-    except Exception as e:
-        print("Error during rescheduling:", e)
-        return {
-            "response": " حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
-            "status": "failed"
-        }
+    return {
+        "response": result["message"],
+        "status": result["status"]
+    }
+
+    # except Exception as e:
+        # return {
+        #     "response": " حاول تزويدي بالتاريخ و الوقت الذي تريد تغيير الحجز له",
+        #     "status": "failed"
+        # }
 
 
 
@@ -267,5 +266,4 @@ def post_rescheduling_router(state: AgentState):
         return "book_appointment"
     else:
         return "END"
-
 
