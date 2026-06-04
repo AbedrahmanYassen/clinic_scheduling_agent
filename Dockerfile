@@ -19,6 +19,7 @@ WORKDIR /code
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl-dev \
+    openssl \        
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 
@@ -26,6 +27,10 @@ RUN useradd -m -u 1000 appuser
 
 COPY --from=builder /root/.local /home/appuser/.local
 ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Force TLS 1.2+ and update SSL certs
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 COPY ./app /code/app
 
