@@ -137,6 +137,7 @@ class ReservationService:
 
         try:
             await self.collection.insert_one(document)
+            print(f"Created reservation for session {self.session_id} at {start_time}")
             return {
                 "status": "success",
                 "message": "تم حجز الموعد بنجاح",
@@ -327,6 +328,7 @@ class ReservationService:
             {"_id": reservation["_id"]},
             {"$set": update_fields},
         )
+        print(f"Updated reservation for session {self.session_id} with fields: {update_fields}")
 
         return {
             "status": "success",

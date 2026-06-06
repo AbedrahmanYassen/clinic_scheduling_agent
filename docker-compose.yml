@@ -48,8 +48,8 @@ services:
     environment:
       - PROJECT_NAME=Haven
       - MODEL_PROVIDER=${MODEL_PROVIDER:-Fanar}
-      - MONGODB_URI=mongodb://admin:admin123@mongodb:27017/haven_db?authSource=admin&tls=false
-      - DATABASE_NAME=haven_db
+      - MONGODB_URI=mongodb://clinic_db:clinic_db_password@mongodb:27017/clinic_agent_db?authSource=admin&tls=true
+      - DATABASE_NAME=clinic_agent_db
       - OLLAMA_MODEL=${OLLAMA_MODEL:-command-r7b-arabic:latest}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL_NAME=gemini-2.5-flash-lite

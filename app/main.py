@@ -17,17 +17,19 @@ import ssl
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    MONGO_URI =  settings.MONGODB_URI
-    DATABASE_NAME =  settings.DATABASE_NAME
-
-
+    MONGODB_URI = settings.MONGODB_URI
+    DATABASE_NAME = settings.DATABASE_NAME
+    print("Connecting to MongoDB...")
+    print("MONGODB_URI:", MONGODB_URI)
+    print("DATABASE_NAME:", DATABASE_NAME)
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ctx.load_verify_locations(certifi.where())
     ctx.set_ciphers("DEFAULT@SECLEVEL=1")
-
+    
     app.mongodb_client = AsyncIOMotorClient(
-        MONGO_URI,
-        tlsCAFile=certifi.where()
+        MONGODB_URI,
+        tls=True,
+        tlsCAFile=certifi.where(),
     )
     app.mongodb = app.mongodb_client[DATABASE_NAME]
     print("Connected to MongoDB!")
