@@ -23,6 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
 
+# Lower OpenSSL security level to allow MongoDB Atlas TLS handshake
+RUN sed -i 's/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/' /etc/ssl/openssl.cnf || \
+    echo "CipherString = DEFAULT@SECLEVEL=1" >> /etc/ssl/openssl.cnf
+
 RUN useradd -m -u 1000 appuser
 
 COPY --from=builder /root/.local /home/appuser/.local
