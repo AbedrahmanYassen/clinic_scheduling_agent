@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+
+from pymongo import MongoClient
 from app.api.v1 import chat
 from app.core.config import settings
 from app.services.mock_llm_service import MockLLMService
@@ -15,16 +17,19 @@ import ssl
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
     MONGO_URI =  settings.MONGODB_URI
     DATABASE_NAME =  settings.DATABASE_NAME
+
+
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.load_verify_locations(certifi.where())
+    ctx.set_ciphers("DEFAULT@SECLEVEL=1")
 
     app.mongodb_client = AsyncIOMotorClient(
         MONGO_URI,
         tls=True,
-        tlsCAFile=certifi.where() 
+        tlsCAFile=certifi.where(),
+        ssl_context=ctx
     )
     app.mongodb = app.mongodb_client[DATABASE_NAME]
     print("Connected to MongoDB!")
