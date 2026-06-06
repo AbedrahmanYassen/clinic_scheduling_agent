@@ -1,109 +1,133 @@
-# 🌿 Haven: Your Intelligent Clinic Scheduling Assistant
+# 🏥 Haven - Clinic Scheduling Chatbot
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-2D333B?style=for-the-badge&logo=langchain)](https://github.com/langchain-ai/langgraph)
-[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+Haven is an AI-powered clinic scheduling assistant built with **FastAPI** and **LangGraph**. It helps patients book, reschedule, and cancel appointments through a natural language interface, supporting multiple LLM providers including Google Gemini, Ollama, and Fanar.
 
-**Haven** is a sophisticated, AI-driven scheduling chatbot designed to streamline patient-clinic interactions. Built with state-of-the-art orchestration via **LangGraph**, Haven handles the complexities of booking, rescheduling, and canceling appointments with an empathetic and professional touch.
+![Haven LangGraph](langgraph.png)
 
----
+## ✨ Features
 
-## ✨ Key Features
-
-- 🗓️ **Seamless Booking**: Intelligent extraction of patient names, dates, and times for frictionless scheduling.
-- 🔄 **Smart Rescheduling & Cancellation**: Effortlessly manage existing appointments through natural conversation.
-- 🤖 **Multi-Provider LLM Support**: Flexible backend supporting **Google Gemini**, **Ollama** (for local privacy), or a **Mock Mode** for offline development.
-- 🗺️ **Stateful Graph Orchestration**: Powered by LangGraph for robust intent routing and data validation.
-- 📅 **Google Calendar Integration**: Ready-to-use hooks for syncing clinic schedules with Google Calendar.
-- 📊 **Full Observability**: Integrated with **LangFuse** for detailed tracing and performance monitoring.
-- 💾 **Persistent Memory**: Uses **MongoDB** to track conversation history and appointment states reliably.
-
----
-
-## 🏗️ Architecture & Workflow
-
-Haven uses a directed graph to manage conversation state, ensuring that every patient interaction is validated and processed accurately.
-
-### The Graph Logic:
-1.  **Intent Detection**: Identifies if the patient wants to book, cancel, reschedule, or ask a general question.
-2.  **Extraction**: Pulls entities (Name, Date, Time) from the conversation.
-3.  **Validation**: Ensures all required data is present and valid before committing to a booking.
-4.  **Action**: Interacts with the database and calendar services.
-5.  **Response**: Generates a professional, context-aware reply.
-
----
+- **🤖 Intelligent Scheduling**: Automated booking, rescheduling, and cancellation of clinic appointments.
+- **🧠 Multi-Agent Logic**: Powered by **LangGraph** for robust state management and intent routing.
+- **🌍 Multi-LLM Support**: Seamlessly switch between **Google Gemini**, **Ollama** (local), and **Fanar API**.
+- **📅 Smart Availability**: Automatically suggests alternative time slots when requested appointments conflict.
+- **💾 Persistent Memory**: Uses **MongoDB** to store chat history, session state, and reservation data.
+- **🔍 Observability**: Integrated with **Langfuse** for tracing and performance monitoring.
+- **🇸🇦 Arabic Support**: Optimized for Arabic natural language processing and clinic workflows.
+- **🐳 Docker Ready**: Full containerization for easy deployment and local development.
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Python 3.13, FastAPI
-- **Agent Framework**: LangGraph, LangChain
-- **AI Models**: Google Gemini (Flash 2.5), Ollama (Local)
-- **Database**: MongoDB (Motor)
-- **Observability**: LangFuse
-- **Environment**: Pydantic Settings
-- **Frontend**: HTML/CSS/JS (Static)
-
----
+- **Backend**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Agent Orchestration**: [LangGraph](https://langchain-ai.github.io/langgraph/) / [LangChain](https://www.langchain.com/)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Async Motor driver)
+- **LLM Providers**: Google Gemini, Ollama, Fanar
+- **Observability**: [Langfuse](https://langfuse.com/)
+- **Package Management**: [uv](https://github.com/astral-sh/uv)
+- **Deployment**: Docker & Docker Compose
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.13+
-- MongoDB instance (Local or Atlas)
-- (Optional) Ollama installed for local LLM support
 
-### Installation
+- Python 3.13+
+- MongoDB (Local or Atlas)
+- Docker (Optional)
+
+### Local Installation
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/clinic-scheduling-chatbot.git
+   git clone <repository-url>
    cd clinic-scheduling-chatbot
    ```
 
-2. **Set up virtual environment**:
+2. **Set up the environment**:
    ```bash
+   # Using uv (recommended)
    uv venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
    uv sync
+   
+   # Or using pip
+   pip install -r requirements.txt
    ```
 
-4. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
-   ```env
-   PROJECT_NAME="Haven"
-   MODEL_PROVIDER="Ollama"  # Or "Gemini"
-   GEMINI_API_KEY="your_key_here"
-   GEMINI_MODEL_NAME="gemini-2.5-flash-lite"
-   MONGODB_URL="mongodb://localhost:27017"
-   DATABASE_NAME="haven_db"
-   LANGFUSE_PUBLIC_KEY="pk-..."
-   LANGFUSE_SECRET_KEY="sk-..."
-   LANGFUSE_BASE_URL="https://cloud.langfuse.com"
-   Electricity_Off=False  # Set to True for dummy mode
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env` and fill in your keys:
+   ```bash
+   cp .env.example .env
    ```
 
-### Running the Application
+4. **Run the application**:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+   The API will be available at `http://localhost:8000`.
 
-Start the FastAPI server:
+### Running with Docker
+
+1. **Quick Start**:
+   ```bash
+   docker-compose up -d
+   ```
+2. **Access the Application**:
+   - Frontend: `http://localhost:8000`
+   - API Docs (Swagger): `http://localhost:8000/docs`
+
+For detailed Docker instructions, see [DOCKER_GUIDE.md](DOCKER_GUIDE.md).
+
+## ⚙️ Configuration
+
+The application is configured via environment variables in the `.env` file. Key settings include:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PROJECT_NAME` | Name of the clinic | `Haven` |
+| `MODEL_PROVIDER` | AI Provider (`Gemini`, `Ollama`, `Fanar`) | `Fanar` |
+| `MONGODB_URI` | MongoDB Connection String | Required |
+| `GEMINI_API_KEY` | API Key for Google Gemini | Required for Gemini |
+| `TIME_ZONE` | Clinic timezone | `Asia/Gaza` |
+
+## 🤖 LLM Providers
+
+### Google Gemini
+Set `MODEL_PROVIDER=Gemini` and provide `GEMINI_API_KEY`. It uses the `gemini-2.5-flash-lite` model by default.
+
+### Ollama (Local)
+Set `MODEL_PROVIDER=Ollama` and `OLLAMA_MODEL`. Ensure Ollama is running locally or via Docker.
 ```bash
-uvicorn app.main:app --reload
+docker-compose --profile ollama up -d
 ```
-Open your browser and navigate to `http://localhost:8000` to start chatting with Haven!
+
+### Fanar API
+Set `MODEL_PROVIDER=Fanar` and provide `Fanar_API_KEY`.
+
+## 📂 Project Structure
+
+```text
+clinic_scheduling_chatbot/
+├── app/
+│   ├── api/v1/         # API Endpoints (Chat, Test)
+│   ├── core/           # Configuration and Prompts
+│   ├── schemas/        # Pydantic Models
+│   ├── services/       # Business Logic & Agent Graph
+│   │   ├── scheduling_agent/ # LangGraph Definition
+│   │   └── tools/      # Agent Tools
+│   ├── static/         # Web Frontend
+│   └── utils/          # Date parsers and Helpers
+├── docker-compose.yml  # Docker Orchestration
+├── Dockerfile          # Container Definition
+└── pyproject.toml      # Dependency Management
+```
+
+## 📝 Roadmap
+
+See [TODO.md](TODO.md) for a detailed list of planned improvements, including:
+- [ ] Move database cleanup to background jobs.
+- [ ] Implement robust error handling and logging.
+- [ ] Add unit and integration tests.
+- [ ] Implement rate limiting and CORS security.
 
 ---
 
-## 📸 Screenshots (Coming Soon)
-*(Placeholder for UI screenshots)*
-
----
-
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-*Developed with ❤️ to make healthcare scheduling human-centric.*
+**Developed with ❤️ for better healthcare accessibility.**
