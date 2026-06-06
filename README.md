@@ -16,7 +16,6 @@
 - 🤖 **Multi-Provider LLM Support**: Flexible backend supporting **Google Gemini**, **Ollama** (for local privacy), or a **Mock Mode** for offline development.
 - 🗺️ **Stateful Graph Orchestration**: Powered by LangGraph for robust intent routing and data validation.
 - 📅 **Google Calendar Integration**: Ready-to-use hooks for syncing clinic schedules with Google Calendar.
-- 📊 **Full Observability**: Integrated with **LangFuse** for detailed tracing and performance monitoring.
 - 💾 **Persistent Memory**: Uses **MongoDB** to track conversation history and appointment states reliably.
 
 ---
