@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         MONGO_URI,
         tls=True,
         tlsCAFile=certifi.where(),
-        ssl_context=ctx
+        tlsAllowInvalidCertificates=False,
     )
     app.mongodb = app.mongodb_client[DATABASE_NAME]
     print("Connected to MongoDB!")
