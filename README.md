@@ -5,6 +5,12 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
+
+
+
+https://github.com/user-attachments/assets/bc0cdbcd-dad1-4f23-bd48-50e1af90f857
+
+
 **Haven** is a sophisticated, AI-driven scheduling chatbot designed to streamline patient-clinic interactions. Built with state-of-the-art orchestration via **LangGraph**, Haven handles the complexities of booking, rescheduling, and canceling appointments with an empathetic and professional touch.
 
 ---
@@ -16,7 +22,6 @@
 - 🤖 **Multi-Provider LLM Support**: Flexible backend supporting **Google Gemini**, **Ollama** (for local privacy), or a **Mock Mode** for offline development.
 - 🗺️ **Stateful Graph Orchestration**: Powered by LangGraph for robust intent routing and data validation.
 - 📅 **Google Calendar Integration**: Ready-to-use hooks for syncing clinic schedules with Google Calendar.
-- 📊 **Full Observability**: Integrated with **LangFuse** for detailed tracing and performance monitoring.
 - 💾 **Persistent Memory**: Uses **MongoDB** to track conversation history and appointment states reliably.
 
 ---
