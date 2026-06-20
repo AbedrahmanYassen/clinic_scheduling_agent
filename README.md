@@ -137,8 +137,6 @@ Intent Node → Route by Intent
    # OR
    GEMINI_API_KEY="your_gemini_key_here"
    GEMINI_MODEL_NAME="gemini-2.5-flash-lite"
-   # OR for local
-   OLLAMA_MODEL="command-r7b-arabic:latest"
     
    # Database
    MONGODB_URL="mongodb://localhost:27017"
@@ -161,7 +159,7 @@ Start the FastAPI server:
 ```bash
 uvicorn app.main:app --reload
 ```
-Open your browser and navigate to `http://localhost:8000` to start chatting with Haven!
+Open your browser and navigate to `http://localhost:8000/api/v1` to start chatting with Haven!
 
 ---
 
