@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Haven"
     Electricity_Off: bool = False
-    OLLAMA_MODEL: str = "command-r7b-arabic:latest"
     MONGODB_URI: str 
     DATABASE_NAME: str 
     GEMINI_MODEL_NAME: str = "gemini-2.5-flash-lite"

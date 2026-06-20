@@ -1,13 +1,10 @@
 # app/services/llm_service.py
 
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.core.config import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
-from langchain_core.prompts import ChatPromptTemplate
-from datetime import datetime
 from langchain_openai import ChatOpenAI
 from app.utils.date_parser import parse_arabic_date
 import json
@@ -28,33 +25,23 @@ class LLMService:
 
 
 
-        if not settings.Electricity_Off:
-            if settings.MODEL_PROVIDER == "Ollama":
-                # self.llm = ChatOllama(
-                #     model=settings.OLLAMA_MODEL,
-                #     temperature=0.8,
-                #     validate_model_on_init=True 
-                # )
-                print("I am gonna remove Ollama soon ")
-            elif settings.MODEL_PROVIDER == "Gemini":
-                    self.llm = ChatGoogleGenerativeAI(
-                    model=settings.GEMINI_MODEL_NAME,
-                    temperature=0.7,
-                    max_tokens=None,
-                    timeout=None,
-                    max_retries=2,
-                    api_key=settings.GEMINI_API_KEY
-                )
-            elif settings.MODEL_PROVIDER == "Fanar":
-                self.llm = ChatOpenAI(
-                    base_url="https://api.fanar.qa/v1",
-                    api_key=settings.Fanar_API_KEY,
-                    model="Fanar",
-                )
-            else:
-                raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
-        else : 
-            self.llm = None  
+        if settings.MODEL_PROVIDER == "Gemini":
+                self.llm = ChatGoogleGenerativeAI(
+                model=settings.GEMINI_MODEL_NAME,
+                temperature=0.7,
+                max_tokens=None,
+                timeout=None,
+                max_retries=2,
+                api_key=settings.GEMINI_API_KEY
+            )
+        elif settings.MODEL_PROVIDER == "Fanar":
+            self.llm = ChatOpenAI(
+                base_url="https://api.fanar.qa/v1",
+                api_key=settings.Fanar_API_KEY,
+                model="Fanar",
+            )
+        else:
+            raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
         self.langfuse.flush()
 
 

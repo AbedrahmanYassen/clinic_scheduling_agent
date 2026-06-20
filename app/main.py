@@ -2,9 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.api.v1 import chat
 from app.core.config import settings
-from app.services.mock_llm_service import MockLLMService
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
 from starlette.middleware.sessions import SessionMiddleware
 from app.services.llm_service import LLMService
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,15 +22,11 @@ async def lifespan(app: FastAPI):
     app.mongodb_client = AsyncIOMotorClient(
         MONGO_URI,
     )
-    app.mongodb = app.mongodb_client[DATABASE_NAME]
-    print("Connected to MongoDB!")
-    try:
-        if settings.Electricity_Off:
-            print("⚡ Running in DUMMY MODE (Offline)")
-            app.state.llm_service = MockLLMService()
-        else:
-            print(f"🤖 Connecting to AI model from ({settings.MODEL_PROVIDER})")
-            app.state.llm_service = LLMService()
+    try : 
+        app.mongodb = app.mongodb_client[DATABASE_NAME]
+        print("Connected to MongoDB!")
+        print(f"🤖 Connecting to AI model from ({settings.MODEL_PROVIDER})")
+        app.state.llm_service = LLMService()
     except Exception as e:
         print("Error initializing LLM service:", e)
     yield

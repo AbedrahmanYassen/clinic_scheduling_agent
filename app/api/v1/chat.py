@@ -7,7 +7,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from app.services import reservation_service
-from app.services.mock_llm_service import MockLLMService
 from fastapi.responses import HTMLResponse
 from app.schemas.chat import ChatMessage, ChatRequest
 from app.services.chat_history_service import ChatHistoryService
