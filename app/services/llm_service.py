@@ -197,6 +197,12 @@ reschedule
                 parsed = parse_arabic_date(raw_date)
                 resolved_date = parsed.strftime('%Y-%m-%d') if parsed else None
         print("Resolved date" , resolved_date)
+
+        # If we got a valid date, check the year
+        if resolved_date:
+            year = int(resolved_date[:4])  # extract year from "YYYY-MM-DD"
+            if year < 2026:
+                resolved_date = '2026' + resolved_date[4:] 
         llm_data["date"] = resolved_date
 
         return {"llm_response": llm_data, "dateParser": resolved_date}

@@ -47,7 +47,7 @@ class ReservationService:
         if booked_already:
             return {
                 "conflict": True,
-                "message": "لديك موعد محجوز بالفعل في هذا الوقت .",
+                "message": "لديك موعد محجوز ",
                 "type": "booked",
                 "status": "failed",
             }

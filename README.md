@@ -32,9 +32,10 @@ Haven is the **first Arabic-native, LLM-powered scheduling agent** that:
 ## Effective Use of Fanar  
 
 ### Meaningful integration of Fanar capabilities  
-- It made sense to use Fanar in this project. It’s an Arabic-first chatbot, so a strong understanding of the language and its dialects is essential. It worked fantastically. Also, without a company budget, it wouldn’t have been possible for me to afford this level of experimentation.  
-- The most important task Fanar handled beautifully was extracting the user’s date, time, name, and service from messy human language across various dialects.  
-- It also handled intent classification and conversation history summarization effectively.  
+- So it just made sense to use Fanar in this project. It’s an Arabic-first chatbot, so a good understanding of the language and its dialects is a must. And it worked well.
+- The most important task Fanar handled was extracting the user’s date, time, name, and service from messy human language with various dialects.
+- But it also handled intent classification and history summarization. 
+
 
 ---
 
@@ -46,10 +47,10 @@ Haven is the **first Arabic-native, LLM-powered scheduling agent** that:
 ---
 
 ### Thoughtful analysis of limitations and opportunities  
-- I did not encounter many issues. The only case I remember is when I asked it, *"بدي أحجز بالله"*, and it shifted into an Islamic topic instead of correctly identifying the intent. However, overall it performed very well.  
-- The Arab market is huge and is increasingly embracing AI, so the opportunities for Arabic-first AI models are immense. In my case, people will gradually start trusting AI chatbots as they become highly reliable and capable of competing with human customer support specialists.  
-
-
+- It needs to be real-time, when I tell it “schedule an appointment  in 25 June only”, it always assumes the year 2023. 
+- Instruction following improvement, when I give the previous three messages to get the intent of the conversation, not just the last message, it rarely succeeds. 
+When Islamic words are used, it confuses it. 
+- Touchy, the guardrails are a bit tight, I mean, I insulted it, a light insult, and it gave a safety error. 
 
 
 
@@ -65,7 +66,6 @@ https://github.com/user-attachments/assets/bc0cdbcd-dad1-4f23-bd48-50e1af90f857
 - 🗓️ **Arabic-Native Intent Classification**: Understands user intent (book/cancel/reschedule/info) with semantic LLM-based classification, not keyword matching.
 - 🔤 **Multi-Turn Entity Extraction**: Conversation memory merges appointment details across multiple user messages—no need to repeat information.
 - 🔄 **Smart Rescheduling & Cancellation**: Handle existing appointments through natural conversation with conflict detection and alternative slot suggestions.
-- 🤖 **Multi-Provider LLM Support**: Flexible backend supporting **Google Gemini**, **Fanar** (Arabic-specialized), **Ollama** (local/privacy), or **Mock Mode** (offline dev).
 - 🗺️ **Stateful Graph Orchestration**: Powered by LangGraph for robust multi-node workflows with conditional routing and error recovery.
 - 💾 **Persistent Memory**: MongoDB stores conversation history, appointment metadata, and session state for reliable multi-turn conversations.
 - 🔍 **Observability Integration**: LangFuse traces LLM calls, latency, and error patterns for production monitoring.
