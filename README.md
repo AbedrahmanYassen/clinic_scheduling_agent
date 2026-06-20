@@ -21,7 +21,6 @@ Clinics across the Arabic-speaking world struggle with **appointment scheduling 
 Haven is the **first Arabic-native, LLM-powered scheduling agent** that:
 - ✅ Understands Arabic dialects naturally (not keyword-based)
 - ✅ Handles complex multi-turn conversations with memory
-- ✅ Automates 70-80% of scheduling tasks
 
 ### Impact
 - **For Patients**: Instant, 24/7 booking in their native language
