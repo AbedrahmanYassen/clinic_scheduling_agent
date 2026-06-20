@@ -38,10 +38,10 @@ class SchedulingAgentService:
                 "summary": history_text
             }
         )
-        png_data = agent_graph_builder.get_graph().draw_mermaid_png()
+        # png_data = agent_graph_builder.get_graph().draw_mermaid_png()
 
-        with open("langgraph.png", "wb") as f:
-            f.write(png_data)
+        # with open("langgraph.png", "wb") as f:
+        #     f.write(png_data)
         if result.get("send_entities"):
             return {
                 "response": result.get("response", ""),
