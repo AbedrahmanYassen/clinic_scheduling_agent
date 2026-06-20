@@ -118,7 +118,6 @@ Each node is a specialized, single-responsibility function:
 - **Separation of concerns**: Each node does one thing well
 - **Error propagation**: Each node can short-circuit to `send_response` on validation failure
 - **Reentrance support**: Reschedule flow can loop back to booking for new slot
-- **Audit trail**: Each node logs its decisions for debugging/monitoring
 
 ### 2.2 Memory & Context Preservation
 
