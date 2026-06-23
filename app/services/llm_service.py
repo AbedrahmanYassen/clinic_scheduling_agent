@@ -7,6 +7,7 @@ from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler
 from langchain_openai import ChatOpenAI
 from app.utils.date_parser import parse_arabic_date
+from app.schemas.chat import AppoinementInfo
 import json
 import re
 
@@ -38,7 +39,7 @@ class LLMService:
             self.llm = ChatOpenAI(
                 base_url="https://api.fanar.qa/v1",
                 api_key=settings.Fanar_API_KEY,
-                model="Fanar",
+                model="Fanar-C-2-27B",
             )
         else:
             raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
@@ -257,22 +258,23 @@ Return ONLY the response message.
         )
         return res.content
     
-
-    def generate_missing_info_response(self, entities: dict) -> str:
-        missing_fields = [field for field, value in entities.items() if value is None]
-        if not missing_fields:
-            return ""
-        
+    def generate_missing_info_response(self, entities: AppoinementInfo) -> str:
         field_names = {
             "name": "الاسم",
             "date": "التاريخ",
             "time": "الوقت",
             "service": "الخدمة"
         }
-        missing_arabic = [field_names.get(field, field) for field in missing_fields]
-        if len(missing_arabic) == 1:
-            return f" من فضلك زودني ب{missing_arabic[0]}."
+        
+        missing_arabic = [
+            field_names.get(field, field)
+            for field, value in entities.model_dump().items()
+            if value is None
+        ]
+        
+        if not missing_arabic:
+            return ""
+        elif len(missing_arabic) == 1:
+            return f"من فضلك زودني ب{missing_arabic[0]}."
         else:
-            all_but_last = ", ".join(missing_arabic[:-1])
-            last = missing_arabic[-1]
-            return f" من فضلك زودني ب{all_but_last} و {last}."
+            return f"من فضلك زودني ب{'، '.join(missing_arabic[:-1])} و{missing_arabic[-1]}."

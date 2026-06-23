@@ -45,7 +45,7 @@ async def extract_node(state: AgentState):
 
         extract_object = await llm_service.extract_entities(last_message)
         
-        data = extract_object["llm_response"]  # already a dict now
+        data = extract_object["llm_response"]  
         appointment = AppoinementInfo.model_validate(data)
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
@@ -98,8 +98,8 @@ async def validate_node(state: AgentState):
         print("Missing or invalid fields:", missing_fields)
         return {
             "next_action": "missing_info",
-            "response": f"هناك بعض الحقول المفقودة أو غير الصحيحة: {', '.join(missing_fields)}. يرجى تقديم المعلومات الكاملة والصحيحة. مثال: أريد حجز موعد في 2026-05-10 الساعة 14:30. اسمي جون.",
-            "send_entities" : False 
+            "send_entities" : False , 
+            "status" : "failed"
         }
 
 
@@ -196,9 +196,11 @@ async def send_response(state: AgentState):
                 "response": state.get("response", "عذراً، حدث خطأ ما.")
             }
         elif(state.get("next_action") == "missing_info") : 
+            print("INside the generate missing response ")
             if state.get("entities") :
+                response = llm_service.generate_missing_info_response(state.get("entities"))
                 return {
-                    "response":   llm_service.generate_missing_info_response(state.get("entities"))
+                    "response":  response ,  
                 }
             else :
                 return {
