@@ -17,7 +17,7 @@ async def intent_node(state: AgentState):
     await state.get("reservation").cleanup_old_reservations()
     last_message = state["messages"][-1].content
 
-    intent = await llm_service.classify_intent(last_message , state.get("summary", ""))
+    intent = await llm_service.classify_intent_safe(last_message , state.get("summary", ""))
     print("Classified intent:", intent)
 
     return {
@@ -47,11 +47,13 @@ async def extract_node(state: AgentState):
         
         data = extract_object["llm_response"]  
         appointment = AppoinementInfo.model_validate(data)
+        
         await state.get("conversation_memory").update_memory(state["session_id"], appointment)
+        appointment_before_merge = appointment
         appointment = await state.get("conversation_memory").merge_entities_with_memory(state["session_id"], appointment)
         print("Merged appointment data with memory:", appointment)
         
-        return {"entities": appointment}
+        return {"entities": appointment , "message_entities" : appointment_before_merge}
 
     except ValidationError as e:
         print("Validation error:", e)
@@ -135,12 +137,20 @@ async def book_appointment(state: AgentState):
         "time": state["entities"].time, 
         "service": state["entities"].service
         })
-        return {
-        "send_entities" : True , 
-        "status" : result["status"], 
-        "response": result["message"],
-        "next_action" : result.get("type", None) 
-        }
+        if result["type"] == "booked" : 
+            return {
+            "send_entities" : result["send_entities"] , 
+            "status" : result["status"], 
+            "response": result["message"],
+            "next_action" : result.get("type", None) 
+            }
+        else :
+            return  {
+            "send_entities" : result["send_entities"] , 
+            "status" : result["status"], 
+            "response": result["message"],
+            "next_action" : result.get("type", None) 
+            }
     except Exception as e:
         print("Error during booking:", e)
         return {
@@ -170,6 +180,14 @@ async def others_handler(state: AgentState):
                 "entities": None,
                 "response": "ليس لديك أي حجوزات",
                 "status": "success",
+                "send_entities": False
+            }
+        elif "safety" in state.get("intent"): 
+            print("Reached here bro")
+            return {
+                "entities": None,
+                "response": "هذا النوع من الرسائل لا يمكنني الرد عليه. إذا كنت تحتاج مساعدة في موعدك، أنا في خدمتك",
+                "status": "failed",
                 "send_entities": False
             }
         else:
@@ -239,7 +257,7 @@ async def reschedule_appointment(state: AgentState):
     print("|")
     print("|")
     # try:
-    result = await state.get("reservation").reschedule_reservation(state.get("entities"))
+    result = await state.get("reservation").reschedule_reservation_2(state.get("message_entities"))
 
     if result.get("status") == "failed" and result.get("type") == "no_reservation":
         return {

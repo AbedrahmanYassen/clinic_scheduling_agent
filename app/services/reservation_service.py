@@ -33,10 +33,9 @@ class ReservationService:
         if len(time.split(":")) == 3:
             time = ":".join(time.split(":")[:2])
 
-        return datetime.strptime(
-            f"{date} {time}",
-            "%Y-%m-%d %H:%M"
-        ).replace(tzinfo=Time_Zone)
+        return datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M").replace(
+            tzinfo=Time_Zone
+        )
 
     async def _has_conflict(self, start: datetime, end: datetime) -> dict:
         booked_already = await self.collection.find_one(
@@ -50,6 +49,7 @@ class ReservationService:
                 "message": "لديك موعد محجوز ",
                 "type": "booked",
                 "status": "failed",
+                "send_entities" : False 
             }
         conflict = await self.collection.find_one(
             {
@@ -70,6 +70,8 @@ class ReservationService:
             "message": "لا يوجد تداخل في الموعد.",
             "type": "none",
             "status": "success",
+            "send_entities" : True 
+
         }
 
     def _is_within_working_hours(self, start: datetime, end: datetime) -> bool:
@@ -105,6 +107,7 @@ class ReservationService:
                 "status": "failed",
                 "message": "هناك حقول مطلوبة مفقودة",
                 "type": "missing_info",
+                "send_entities": False,
             }
 
         start_time = self._build_datetime(date, time)
@@ -115,6 +118,7 @@ class ReservationService:
                 "status": "failed",
                 "message": "لا يمكنك حجز موعد في الماضي.",
                 "type": "past_date",
+                "send_entities": False,
             }
         conflict_result = await self._has_conflict(start_time, end_time)
         if conflict_result["conflict"]:
@@ -124,6 +128,7 @@ class ReservationService:
                 "status": "failed",
                 "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
                 "type": "working_hours",
+                "send_entities": False,
             }
 
         document = {
@@ -144,15 +149,18 @@ class ReservationService:
                     "start_time": start_time.strftime(
                         "%Y-%m-%d %H:%M"
                     ),  # ✅ clean format
-                    type: "success",
                 },
+                "type": "success",
+                "send_entities": True,
             }
 
         except DuplicateKeyError:
             return {
                 "status": "failed",
                 "message": "لقد تم أخذ هذه الفترة الزمنية للتو. حاول في وقت آخر.",
-                "type": "exception",
+                "type": "exception", 
+                                "send_entities" : False 
+,
             }
 
     async def get_reservation(self, session_id: str) -> AppoinementInfo | None:
@@ -219,25 +227,20 @@ class ReservationService:
                 "message": "لم يتم العثور على الموعد أو لا يمكنك إلغاؤه",
             }
 
-    async def reschedule_reservation(
-    self,
-    appointment_info: AppoinementInfo
-) -> dict:
+    async def reschedule_reservation_2(self, appointment_info: AppoinementInfo) -> dict:
 
         date = appointment_info.date
         time = appointment_info.time
         name = appointment_info.name
         service = appointment_info.service
 
-        reservation = await self.collection.find_one(
-            {"session_id": self.session_id}
-        )
+        reservation = await self.collection.find_one({"session_id": self.session_id})
 
         if not reservation:
             return {
                 "status": "failed",
                 "message": "لا يوجد حجز لإعادة جدولته.",
-                "type": "no_reservation"
+                "type": "no_reservation",
             }
 
         update_fields = {}
@@ -261,18 +264,15 @@ class ReservationService:
 
             start_time = self._build_datetime(new_date, new_time)
             end_time = start_time + timedelta(minutes=30)
-            
+
             if await self._is_past(start_time):
-                return {
-                    "status": "failed",
-                    "message": "لا يمكنك حجز موعد في الماضي."
-                }
+                return {"status": "failed", "message": "لا يمكنك حجز موعد في الماضي."}
 
             if not self._is_within_working_hours(start_time, end_time):
                 return {
                     "status": "failed",
                     "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
-                    "type": "outside_working_hours"
+                    "type": "outside_working_hours",
                 }
 
             conflict = await self.collection.find_one(
@@ -287,7 +287,7 @@ class ReservationService:
                 return {
                     "status": "failed",
                     "message": "الموعد الجديد غير متاح.",
-                    "type": "conflict"
+                    "type": "conflict",
                 }
 
             update_fields["start_time"] = start_time
@@ -318,7 +318,7 @@ class ReservationService:
             return {
                 "status": "failed",
                 "message": "لا توجد بيانات جديدة للتحديث.",
-                "type": "no_changes"
+                "type": "no_changes",
             }
 
         update_fields["updated_at"] = datetime.now(Time_Zone)
@@ -331,5 +331,122 @@ class ReservationService:
         return {
             "status": "success",
             "message": "، ".join(message_parts) + ".",
-            "type": "success"
+            "type": "success",
+        }
+
+    async def reschedule_reservation(self, appointment_info: AppoinementInfo) -> dict:
+
+        date = appointment_info.date
+        time = appointment_info.time
+        name = appointment_info.name
+        service = appointment_info.service
+
+        reservation = await self.collection.find_one({"session_id": self.session_id})
+
+        if not reservation:
+            return {
+                "status": "failed",
+                "message": "لا يوجد حجز لإعادة جدولته.",
+                "type": "no_reservation",
+            }
+
+        update_fields = {}
+        message_parts = []
+
+        # -------------------------
+        # Existing reservation datetime
+        # -------------------------
+        old_start = reservation["start_time"]
+
+        new_date = date if date else old_start.date()
+        new_time = time if time else old_start.time()
+        print("New date:", new_date)
+        print("New time:", new_time)
+        datetime_changed = bool(date or time)
+
+        # -------------------------
+        # Handle date/time updates
+        # -------------------------
+        if datetime_changed:
+
+            start_time = self._build_datetime(new_date, new_time)
+            end_time = start_time + timedelta(minutes=30)
+
+            # -------------------------
+            # Same datetime as before — skip
+            # -------------------------
+            if start_time.astimezone(Time_Zone) == old_start.astimezone(Time_Zone):
+                datetime_changed = False
+
+            else:
+                if await self._is_past(start_time):
+                    return {
+                        "status": "failed",
+                        "message": "لا يمكنك حجز موعد في الماضي.",
+                    }
+
+                if not self._is_within_working_hours(start_time, end_time):
+                    return {
+                        "status": "failed",
+                        "message": "يجب أن يكون الموعد ضمن ساعات العمل (9 صباحاً - 5 مساءً، من الأحد إلى الخميس)",
+                        "type": "outside_working_hours",
+                    }
+
+                conflict = await self.collection.find_one(
+                    {
+                        "_id": {"$ne": reservation["_id"]},
+                        "start_time": {"$lt": end_time},
+                        "end_time": {"$gt": start_time},
+                    }
+                )
+
+                if conflict:
+                    return {
+                        "status": "failed",
+                        "message": "الموعد الجديد غير متاح.",
+                        "type": "conflict",
+                    }
+
+                update_fields["start_time"] = start_time
+                update_fields["end_time"] = end_time
+
+                message_parts.append(
+                    f"تم تحديث الموعد إلى {start_time.strftime('%Y-%m-%d %H:%M')}"
+                )
+
+        # -------------------------
+        # Name update
+        # -------------------------
+        if name and name != reservation.get("name"):
+            update_fields["name"] = name
+            message_parts.append(f"تم تحديث الاسم إلى {name}")
+
+        # -------------------------
+        # Service update
+        # -------------------------
+        if service and service != reservation.get("service"):
+            update_fields["service"] = service
+            message_parts.append(f"تم تحديث الخدمة إلى {service}")
+
+        # -------------------------
+        # Nothing changed
+        # -------------------------
+        if not update_fields:
+            return {
+                "status": "failed",
+                "message": "لا توجد بيانات جديدة للتحديث.",
+                "type": "no_changes",
+            }
+
+        update_fields["updated_at"] = datetime.now(Time_Zone)
+
+        await self.collection.update_one(
+            {"_id": reservation["_id"]},
+            {"$set": update_fields},
+        )
+
+        return {
+            "status": "success",
+            "message": "، ".join(message_parts) + ".",
+            "type": "success",
         }

@@ -14,5 +14,6 @@ class AgentState(TypedDict):
     status : str | None
     summary : str | None
     send_entities: bool | None 
+    message_entities: AppoinementInfo | None
 
 

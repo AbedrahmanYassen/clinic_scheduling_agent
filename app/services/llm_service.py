@@ -10,6 +10,7 @@ from app.utils.date_parser import parse_arabic_date
 from app.schemas.chat import AppoinementInfo
 import json
 import re
+from openai import BadRequestError
 
 class LLMService:
     def __init__(self):
@@ -45,7 +46,82 @@ class LLMService:
             raise ValueError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
         self.langfuse.flush()
 
+    async def classify_intent_safe(self, message: str, history: str) -> str:
+        prompt = [
+            SystemMessage(content='''
+    أنت مصنف نوايا لمساعد حجز مواعيد في عيادة.
 
+    مهمتك هي قراءة رسالة المستخدم باللغة العربية وإرجاع كلمة واحدة فقط من القائمة التالية:
+
+    و عليك قراءة أخر تلات رسائل المستخدم في المحادثة لأخذ فكرة عن سياق الحديث و لتقديم تصنيف أدق للنوايا، لكن لا تذكر هذه الرسائل في التصنيف، فقط استخدمها كخلفية لفهم أفضل.
+    - book
+    - cancel
+    - reschedule
+    - appointment_info
+    - info
+
+    التصنيفات:
+    - book → إذا كان المستخدم يريد حجز موعد جديد.
+    - cancel → إذا كان المستخدم يريد إلغاء موعد، أو أعرب عن عدم رضاه عن الموعد الحالي أو أنه لا يناسبه.
+    - reschedule → إذا كان المستخدم يريد تغيير أو تأجيل أو إعادة جدولة موعد.
+    - appointment_info → إذا أراد المستخدم أن يرى معلومات عن موعده الحالي أو السابق.
+    - info → إذا كان المستخدم يرسل معلومات فقط مثل الاسم أو التاريخ أو الوقت بدون طلب واضح.
+
+    قواعد مهمة:
+    - أرجع كلمة واحدة فقط.
+    - لا تشرح.
+    - لا تضف علامات ترقيم.
+    - إذا أعرب المستخدم عن رفض الموعد أو عدم ملاءمته دون ذكر موعد بديل، صنّفه cancel.
+    - إذا أعرب عن رفض الموعد وذكر وقتاً أو يوماً بديلاً، صنّفه reschedule.
+
+    أمثلة:
+
+    المستخدم: أريد حجز موعد
+    book
+
+    المستخدم: لو سمحت ألغِ موعدي
+    cancel
+
+    المستخدم: بدي أغير موعدي للساعة 5
+    reschedule
+
+    المستخدم: اسمي أحمد وموعدي الثلاثاء
+    info
+
+    المستخدم: هذا الموعد ما يناسبني
+    cancel
+
+    المستخدم: ما أبغى هذا الموعد
+    cancel
+
+    المستخدم: هذا الوقت ما يصلح معي
+    cancel
+
+    متى موعدي الحالي؟
+    appointment_info
+    المستخدم: لا يناسبني هذا الوقت، ممكن الخميس بدل كذا؟
+    reschedule
+                            
+    بدي أغير اسمي في الحجز  
+    reschedule             
+                                        
+    أخر 3 رسائل من المستخدم:
+    {history}
+    الرسالة:
+    {text}'''.format(text=message, history=history)),
+            HumanMessage(content=message)
+        ]
+
+        try:
+            res = await self.llm.ainvoke(
+                prompt,
+                config={"callbacks": [self.langfuse_handler]}
+            )
+            return res.content.strip().lower()
+        except BadRequestError as e:
+            if e.code == "content_filter":
+                return "safety"  # safe fallback intent
+            raise
     async def classify_intent(self, message: str , history: str) -> str:
         prompt = [
             SystemMessage(content='''
