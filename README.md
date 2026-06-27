@@ -16,6 +16,9 @@
 Built for **Fanar Hackathon 2026** by Abdelrhman Yaseen — Islamic University of Gaza.
 
 ---
+## Where I used Fanar in my project? 
+- app/services/llm_service.py, mainly I used Fanar, but I experimented with other models to see how they would react.
+-  app/services/scheduling_agent/nodes.py: The langgraph nodes are here? You can see langgraph.png for the workflow diagram.
 
 ## The Problem
 
